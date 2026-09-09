@@ -11,6 +11,15 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+    // SPA fallback: serve index.html for any unmatched path so the React
+    // Router client can handle deep links and hard-refreshes on nested URLs
+    // (e.g. /dashboard/orders, /admin/tenants). Without this Vite returns 404.
+    //
+    // Production equivalents:
+    //   nginx:   try_files $uri $uri/ /index.html;
+    //   Vercel:  { "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
+    //   Netlify: /* /index.html 200
+    historyApiFallback: true,
     proxy: {
       // Proxy API calls to backend in development — avoids CORS
       '/api': {

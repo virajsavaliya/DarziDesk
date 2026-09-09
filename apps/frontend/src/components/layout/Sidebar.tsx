@@ -28,6 +28,8 @@ export interface NavItem {
   label: string;
   icon: React.ReactNode;
   badge?: string | number;
+  /** URL path for this nav item — e.g. '/dashboard/orders' */
+  path?: string;
 }
 
 interface NavGroup {
@@ -43,6 +45,8 @@ interface SidebarProps {
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
   demoUsers?: DemoUser[];
+  /** Called when the user clicks the logout button */
+  onLogout?: () => void;
 }
 
 // ── Super Admin Nav ────────────────────────────────────────────────────────
@@ -50,16 +54,16 @@ const SUPER_ADMIN_NAV_GROUPS: NavGroup[] = [
   {
     label: 'Platform Overview',
     items: [
-      { id: 'admin-tenants', label: 'Tenants & Shops', icon: <Building2 className="w-5 h-5" /> },
-      { id: 'admin-revenue', label: 'Revenue & Growth', icon: <TrendingUp className="w-5 h-5" /> },
-      { id: 'admin-plans', label: 'Subscription Plans', icon: <Layers className="w-5 h-5" /> },
+      { id: 'admin-tenants', label: 'Tenants & Shops', icon: <Building2 className="w-5 h-5" />, path: '/admin/tenants' },
+      { id: 'admin-revenue', label: 'Revenue & Growth', icon: <TrendingUp className="w-5 h-5" />, path: '/admin/revenue' },
+      { id: 'admin-plans', label: 'Subscription Plans', icon: <Layers className="w-5 h-5" />, path: '/admin/plans' },
     ],
   },
   {
     label: 'Marketplace & Discovery',
     items: [
-      { id: 'moderation', label: 'Marketplace Moderation', icon: <Shield className="w-5 h-5" /> },
-      { id: 'marketplace', label: 'Public Directory', icon: <Compass className="w-5 h-5" /> },
+      { id: 'moderation', label: 'Marketplace Moderation', icon: <Shield className="w-5 h-5" />, path: '/admin/moderation' },
+      { id: 'marketplace', label: 'Public Directory', icon: <Compass className="w-5 h-5" />, path: '/admin/marketplace' },
     ],
   },
 ];
@@ -69,28 +73,28 @@ const OWNER_NAV_GROUPS: NavGroup[] = [
   {
     label: 'Operations',
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
-      { id: 'orders', label: 'Orders', icon: <ClipboardList className="w-5 h-5" /> },
-      { id: 'customers', label: 'Customers', icon: <Users className="w-5 h-5" /> },
-      { id: 'measurements', label: 'Measurements', icon: <Ruler className="w-5 h-5" /> },
-      { id: 'fabric', label: 'Fabric Inventory', icon: <Package className="w-5 h-5" /> },
+      { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, path: '/dashboard/home' },
+      { id: 'orders', label: 'Orders', icon: <ClipboardList className="w-5 h-5" />, path: '/dashboard/orders' },
+      { id: 'customers', label: 'Customers', icon: <Users className="w-5 h-5" />, path: '/dashboard/customers' },
+      { id: 'measurements', label: 'Measurements', icon: <Ruler className="w-5 h-5" />, path: '/dashboard/measurements' },
+      { id: 'fabric', label: 'Fabric Inventory', icon: <Package className="w-5 h-5" />, path: '/dashboard/fabric' },
     ],
   },
   {
     label: 'Management',
     items: [
-      { id: 'products', label: 'Products & Services', icon: <Tag className="w-5 h-5" /> },
-      { id: 'staff', label: 'Staff', icon: <UserCheck className="w-5 h-5" /> },
-      { id: 'billing', label: 'Billing & Invoices', icon: <CreditCard className="w-5 h-5" /> },
-      { id: 'reports', label: 'Reports', icon: <BarChart2 className="w-5 h-5" /> },
+      { id: 'products', label: 'Products & Services', icon: <Tag className="w-5 h-5" />, path: '/dashboard/products' },
+      { id: 'staff', label: 'Staff', icon: <UserCheck className="w-5 h-5" />, path: '/dashboard/staff' },
+      { id: 'billing', label: 'Billing & Invoices', icon: <CreditCard className="w-5 h-5" />, path: '/dashboard/billing' },
+      { id: 'reports', label: 'Reports', icon: <BarChart2 className="w-5 h-5" />, path: '/dashboard/reports' },
     ],
   },
   {
     label: 'Marketplace & Growth',
     items: [
-      { id: 'marketplace-settings', label: 'Marketplace Profile', icon: <Store className="w-5 h-5" /> },
-      { id: 'marketplace', label: 'Explore Directory', icon: <Compass className="w-5 h-5" /> },
-      { id: 'settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
+      { id: 'marketplace-settings', label: 'Marketplace Profile', icon: <Store className="w-5 h-5" />, path: '/dashboard/marketplace-settings' },
+      { id: 'marketplace', label: 'Explore Directory', icon: <Compass className="w-5 h-5" />, path: '/dashboard/marketplace' },
+      { id: 'settings', label: 'Settings', icon: <Settings className="w-5 h-5" />, path: '/dashboard/settings' },
     ],
   },
 ];
@@ -100,10 +104,10 @@ const STAFF_NAV_GROUPS: NavGroup[] = [
   {
     label: 'Tailoring Workspace',
     items: [
-      { id: 'tasks', label: 'My Work', icon: <LayoutDashboard className="w-5 h-5" /> },
-      { id: 'orders', label: 'Orders', icon: <ClipboardList className="w-5 h-5" /> },
-      { id: 'customers', label: 'Customers', icon: <Users className="w-5 h-5" /> },
-      { id: 'measurements', label: 'Measurements', icon: <Ruler className="w-5 h-5" /> },
+      { id: 'tasks', label: 'My Work', icon: <LayoutDashboard className="w-5 h-5" />, path: '/dashboard/tasks' },
+      { id: 'orders', label: 'Orders', icon: <ClipboardList className="w-5 h-5" />, path: '/dashboard/orders' },
+      { id: 'customers', label: 'Customers', icon: <Users className="w-5 h-5" />, path: '/dashboard/customers' },
+      { id: 'measurements', label: 'Measurements', icon: <Ruler className="w-5 h-5" />, path: '/dashboard/measurements' },
     ],
   },
 ];
@@ -113,11 +117,11 @@ const CUSTOMER_NAV_GROUPS: NavGroup[] = [
   {
     label: 'Customer Bespoke Portal',
     items: [
-      { id: 'marketplace', label: 'Explore Marketplace', icon: <Compass className="w-5 h-5" /> },
-      { id: 'orders', label: 'My Orders', icon: <ClipboardList className="w-5 h-5" /> },
-      { id: 'catalog', label: 'Shop Catalog & Order', icon: <Store className="w-5 h-5" /> },
-      { id: 'measurements', label: 'My Measurements', icon: <Ruler className="w-5 h-5" /> },
-      { id: 'invoices', label: 'My Invoices', icon: <CreditCard className="w-5 h-5" /> },
+      { id: 'marketplace', label: 'Explore Marketplace', icon: <Compass className="w-5 h-5" />, path: '/portal/marketplace' },
+      { id: 'orders', label: 'My Orders', icon: <ClipboardList className="w-5 h-5" />, path: '/portal/orders' },
+      { id: 'catalog', label: 'Shop Catalog & Order', icon: <Store className="w-5 h-5" />, path: '/portal/catalog' },
+      { id: 'measurements', label: 'My Measurements', icon: <Ruler className="w-5 h-5" />, path: '/portal/measurements' },
+      { id: 'invoices', label: 'My Invoices', icon: <CreditCard className="w-5 h-5" />, path: '/portal/invoices' },
     ],
   },
 ];
@@ -130,6 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile = false,
   onCloseMobile,
   demoUsers = [],
+  onLogout,
 }) => {
   const [showPersonaMenu, setShowPersonaMenu] = React.useState(false);
 
@@ -178,7 +183,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <button
                     key={item.id}
                     onClick={() => {
-                      onNavigate(item.id);
+                      // Use path if available, otherwise fall back to id-based handler
+                      onNavigate(item.path ?? item.id);
                       if (onCloseMobile) onCloseMobile();
                     }}
                     className={`w-full min-h-[44px] px-3.5 py-2.5 rounded-xl text-sm font-medium flex items-center justify-between transition-all ${
@@ -292,7 +298,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             <button
               onClick={() => {
-                alert('Log out requested');
+                if (onLogout) {
+                  onLogout();
+                } else {
+                  // Fallback: clear storage and reload
+                  localStorage.removeItem('darzi_auth');
+                  window.location.href = '/login';
+                }
               }}
               className="p-1.5 text-white/60 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
               title="Logout"

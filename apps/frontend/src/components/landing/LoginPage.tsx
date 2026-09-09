@@ -77,14 +77,17 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
-/** Map role → redirect URL. Convenience redirect only, not access control. */
+/**
+ * Map role → redirect URL. Convenience redirect only — not access control.
+ * Mirrors defaultRouteForRole in App.tsx (source of truth for URL structure).
+ */
 function redirectForRole(role: string): string {
   switch (role) {
-    case 'SUPER_ADMIN': return '/admin';
-    case 'SHOP_OWNER':
-    case 'STAFF':       return '/dashboard';
-    case 'CUSTOMER':    return '/portal';
-    default:            return '/dashboard';
+    case 'SUPER_ADMIN': return '/admin/tenants';
+    case 'SHOP_OWNER':  return '/dashboard/home';
+    case 'STAFF':       return '/dashboard/tasks';
+    case 'CUSTOMER':    return '/portal/marketplace';
+    default:            return '/dashboard/home';
   }
 }
 

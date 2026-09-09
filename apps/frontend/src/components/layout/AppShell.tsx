@@ -13,6 +13,8 @@ interface AppShellProps {
   demoUsers?: DemoUser[];
   searchValue?: string;
   onSearchChange?: (val: string) => void;
+  /** Called when the user clicks logout in the sidebar */
+  onLogout?: () => void;
   children: React.ReactNode;
 }
 
@@ -26,6 +28,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   demoUsers = [],
   searchValue = '',
   onSearchChange,
+  onLogout,
   children,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -41,6 +44,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         isOpenMobile={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
         demoUsers={demoUsers}
+        onLogout={onLogout}
       />
 
       {/* ── Main Layout Column ─────────────────────────────────── */}

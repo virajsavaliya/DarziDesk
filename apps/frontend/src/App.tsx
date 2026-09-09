@@ -1,5 +1,34 @@
+/**
+ * App.tsx — DarziDesk root router
+ *
+ * Auth boot strategy:
+ *   1. `currentUser` is initialised synchronously from localStorage so
+ *      there is NO null flash on page refresh (eliminates redirect race).
+ *   2. `bootstrapping` is `true` on mount. While true, a loading spinner
+ *      is shown instead of routes — this covers the async `GET /api/users/me`
+ *      validation call that verifies the stored token hasn't expired.
+ *   3. Once bootstrapping completes, `currentUser` is either populated (valid
+ *      token) or null (expired / absent). Protected routes then evaluate.
+ *
+ * Routing:
+ *   /                       → LandingPage (public)
+ *   /login                  → LoginPage (public)
+ *   /marketplace            → PublicMarketplaceRoute (public)
+ *   /dashboard/*            → Owner / Staff shell + nested section routes
+ *   /portal/*               → Customer shell + nested section routes
+ *   /admin/*                → SuperAdmin shell + nested section routes
+ */
+
 import { useState, useEffect, useCallback } from 'react';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import {
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+  useNavigate,
+  useLocation,
+  useParams,
+} from 'react-router-dom';
 import type {
   Order,
   DailySummary,
@@ -47,34 +76,229 @@ import { SuperAdminRevenueView } from './components/admin/SuperAdminRevenueView'
 import { SuperAdminPlansView } from './components/admin/SuperAdminPlansView';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Authenticated shell (OWNER / STAFF / SUPER_ADMIN / CUSTOMER)
-// Receives the currentUser and demoUsers from App-level state.
+// Auth helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface AuthenticatedShellProps {
+/**
+ * Build a DemoUser from stored auth synchronously.
+ * Called in useState initializer — no async, no useEffect needed.
+ */
+function buildUserFromStorage(): DemoUser | null {
+  const stored = getStoredAuth();
+  if (!stored?.token) return null;
+  return {
+    id: stored.userId,
+    name: stored.name || 'User',
+    email: stored.email || '',
+    role: stored.role as DemoUser['role'],
+    token: stored.token,
+  };
+}
+
+/**
+ * Validate stored token against the server.
+ * Uses GET /api/users/me (exists for STAFF / SHOP_OWNER / SUPER_ADMIN roles).
+ * For CUSTOMER role, uses GET /api/portal/me (customer self-profile).
+ * Returns the enriched user on success, null on 401/403/network error.
+ */
+async function validateToken(user: DemoUser): Promise<DemoUser | null> {
+  try {
+    // Choose appropriate validation endpoint by role
+    const endpoint =
+      user.role === 'CUSTOMER' ? '/api/portal/me' : '/api/users/me';
+
+    const res = await fetch(endpoint, {
+      headers: { Authorization: `Bearer ${user.token}` },
+    });
+
+    if (!res.ok) return null; // 401 expired, 403 wrong role, etc.
+
+    const json = await res.json();
+    const serverUser = json.data;
+
+    if (!serverUser) return user; // endpoint returned 200 but no body — trust stored data
+
+    // Enrich stored user with fresh server data
+    return {
+      ...user,
+      name: serverUser.firstName
+        ? `${serverUser.firstName} ${serverUser.lastName}`.trim()
+        : user.name,
+      email: serverUser.email || user.email,
+    };
+  } catch {
+    // Network error — allow offline-ish use: trust the stored token
+    return user;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Route helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Map role → default redirect URL after login */
+export function defaultRouteForRole(role: string): string {
+  switch (role) {
+    case 'SUPER_ADMIN': return '/admin/tenants';
+    case 'SHOP_OWNER':  return '/dashboard/home';
+    case 'STAFF':       return '/dashboard/tasks';
+    case 'CUSTOMER':    return '/portal/marketplace';
+    default:            return '/dashboard/home';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Full-screen loading spinner (shown during bootstrap)
+// ─────────────────────────────────────────────────────────────────────────────
+function BootLoader() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-8 h-8 rounded-full border-4 border-brand border-t-transparent animate-spin" />
+        <p className="text-sm text-text-muted">Loading your workspace…</p>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ProtectedRoute — guards any subtree that requires authentication.
+// Renders children when authenticated; redirects to /login when not.
+// ─────────────────────────────────────────────────────────────────────────────
+interface ProtectedRouteProps {
+  currentUser: DemoUser | null;
+  bootstrapping: boolean;
+  /** Optional role check — redirects away if the user's role isn't in the list */
+  allowedRoles?: DemoUser['role'][];
+  /** Where to redirect if role check fails (default: role's home) */
+  redirectTo?: string;
+}
+
+function ProtectedRoute({
+  currentUser,
+  bootstrapping,
+  allowedRoles,
+  redirectTo,
+}: ProtectedRouteProps) {
+  if (bootstrapping) return <BootLoader />;
+  if (!currentUser) return <Navigate to="/login" replace />;
+
+  if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
+    const target = redirectTo ?? defaultRouteForRole(currentUser.role);
+    return <Navigate to={target} replace />;
+  }
+
+  return <Outlet />;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Marketplace Storefront sub-route (handles /marketplace/:shopId)
+// ─────────────────────────────────────────────────────────────────────────────
+function MarketplaceStorefrontRoute({ onStartOrder }: { onStartOrder?: (tenantId: string) => void }) {
+  const { shopId } = useParams<{ shopId: string }>();
+  const navigate = useNavigate();
+  if (!shopId) return <Navigate to=".." replace />;
+  return (
+    <PublicShopStorefrontView
+      shopId={shopId}
+      onBack={() => navigate(-1)}
+      onStartOrder={onStartOrder ?? (() => {})}
+    />
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Owner Dashboard Shell — layout + sidebar nav for SHOP_OWNER / STAFF
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface DashboardShellProps {
   currentUser: DemoUser;
   demoUsers: DemoUser[];
   onUserChange: (u: DemoUser) => void;
   onLogout: () => void;
 }
 
-function AuthenticatedShell({ currentUser, demoUsers, onUserChange, onLogout: _onLogout }: AuthenticatedShellProps) {
-  const isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
+function DashboardShell({ currentUser, demoUsers, onUserChange, onLogout }: DashboardShellProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const isOwner = currentUser.role === 'SHOP_OWNER';
-  const isCustomer = currentUser.role === 'CUSTOMER';
 
-  const [activeNavId, setActiveNavId] = useState<string>(() => {
-    if (isSuperAdmin) return 'admin-tenants';
-    if (isOwner) return 'dashboard';
-    if (isCustomer) return 'marketplace';
-    return 'tasks';
-  });
+  // Derive active nav id from the URL path segment
+  const pathSegment = location.pathname.split('/dashboard/')[1]?.split('/')[0] ?? '';
+  const activeNavId = (pathSegment === 'home' ? 'dashboard' : pathSegment) || (isOwner ? 'dashboard' : 'tasks');
 
+  const getPageTitle = () => {
+    switch (activeNavId) {
+      case 'home':
+      case 'dashboard':   return 'Dashboard';
+      case 'orders':      return 'All Orders';
+      case 'customers':   return 'Customers';
+      case 'measurements':return 'Measurements';
+      case 'fabric':      return 'Fabric Inventory';
+      case 'staff':       return 'Staff';
+      case 'products':    return 'Products & Services';
+      case 'billing':     return 'Billing & Invoices';
+      case 'reports':     return 'Reports';
+      case 'marketplace-settings': return 'Marketplace Profile Settings';
+      case 'marketplace': return 'Marketplace Directory';
+      case 'settings':    return 'Settings';
+      case 'tasks':       return 'My Work & Tasks';
+      default:            return 'Dashboard';
+    }
+  };
+
+  const handleNavigate = (target: string) => {
+    // If target is already a full URL path (e.g. '/dashboard/home'), navigate directly
+    if (target.startsWith('/')) {
+      navigate(target);
+      return;
+    }
+    // Map nav IDs to URL paths
+    const idToPath: Record<string, string> = {
+      dashboard: '/dashboard/home',
+      home: '/dashboard/home',
+      orders: '/dashboard/orders',
+      customers: '/dashboard/customers',
+      measurements: '/dashboard/measurements',
+      fabric: '/dashboard/fabric',
+      staff: '/dashboard/staff',
+      products: '/dashboard/products',
+      billing: '/dashboard/billing',
+      reports: '/dashboard/reports',
+      'marketplace-settings': '/dashboard/marketplace-settings',
+      marketplace: '/dashboard/marketplace',
+      settings: '/dashboard/settings',
+      tasks: '/dashboard/tasks',
+    };
+    navigate(idToPath[target] ?? `/dashboard/${target}`);
+  };
+
+  return (
+    <AppShell
+      pageTitle={getPageTitle()}
+      breadcrumb={isOwner ? 'DarziDesk Owner' : 'DarziDesk Workshop'}
+      activeNavId={activeNavId}
+      onNavigate={handleNavigate}
+      currentUser={currentUser}
+      onSelectPersona={(u) => {
+        onUserChange(u);
+        navigate(defaultRouteForRole(u.role));
+      }}
+      demoUsers={demoUsers}
+      onLogout={onLogout}
+    >
+      <Outlet />
+    </AppShell>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Staff Work Queue page (used inside dashboard routes for STAFF role)
+// ─────────────────────────────────────────────────────────────────────────────
+function StaffTasksPage({ currentUser }: { currentUser: DemoUser }) {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | 'ALL'>('ALL');
-  const [globalSearch, setGlobalSearch] = useState<string>('');
-  const [selectedPortalOrder, setSelectedPortalOrder] = useState<CustomerPortalOrder | null>(null);
-  const [selectedCatalogTenantId, setSelectedCatalogTenantId] = useState<string | null>(null);
-  const [selectedMarketplaceShopId, setSelectedMarketplaceShopId] = useState<string | null>(null);
+  const [globalSearch, setGlobalSearch] = useState('');
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
@@ -83,36 +307,22 @@ function AuthenticatedShell({ currentUser, demoUsers, onUserChange, onLogout: _o
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Reset nav when user role changes
-  useEffect(() => {
-    if (isSuperAdmin) setActiveNavId('admin-tenants');
-    else if (isOwner) setActiveNavId('dashboard');
-    else if (isCustomer) setActiveNavId('marketplace');
-    else setActiveNavId('tasks');
-    setSelectedOrder(null);
-    setSelectedPortalOrder(null);
-    setSelectedMarketplaceShopId(null);
-  }, [currentUser.id, currentUser.role, isSuperAdmin, isOwner, isCustomer]);
-
-  const fetchOrders = useCallback(
-    async (token: string, status: OrderStatus | 'ALL') => {
-      setLoadingOrders(true);
-      setOrdersError(null);
-      try {
-        let url = '/api/staff/me/orders?sort=estimatedDeliveryDate&order=asc&limit=50';
-        if (status !== 'ALL') url += `&status=${status}`;
-        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-        if (!res.ok) throw new Error(`Failed to load orders (${res.status})`);
-        const json = await res.json();
-        setOrders(json.data || []);
-      } catch (err: any) {
-        setOrdersError(err.message || 'Error loading orders queue');
-      } finally {
-        setLoadingOrders(false);
-      }
-    },
-    [],
-  );
+  const fetchOrders = useCallback(async (token: string, status: OrderStatus | 'ALL') => {
+    setLoadingOrders(true);
+    setOrdersError(null);
+    try {
+      let url = '/api/staff/me/orders?sort=estimatedDeliveryDate&order=asc&limit=50';
+      if (status !== 'ALL') url += `&status=${status}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error(`Failed to load orders (${res.status})`);
+      const json = await res.json();
+      setOrders(json.data || []);
+    } catch (err: any) {
+      setOrdersError(err.message || 'Error loading orders queue');
+    } finally {
+      setLoadingOrders(false);
+    }
+  }, []);
 
   const fetchSummary = useCallback(async (token: string) => {
     setLoadingSummary(true);
@@ -130,317 +340,341 @@ function AuthenticatedShell({ currentUser, demoUsers, onUserChange, onLogout: _o
   }, []);
 
   useEffect(() => {
-    if (!currentUser || isOwner || isCustomer || isSuperAdmin) return;
     fetchOrders(currentUser.token, selectedStatus);
     fetchSummary(currentUser.token);
-  }, [currentUser, selectedStatus, refreshTrigger, isOwner, isCustomer, isSuperAdmin, fetchOrders, fetchSummary]);
+  }, [currentUser.token, selectedStatus, refreshTrigger, fetchOrders, fetchSummary]);
 
   const handleOrderUpdated = () => setRefreshTrigger((prev) => prev + 1);
 
+  return (
+    <div className="space-y-6">
+      <StaffKpiCards
+        orders={orders}
+        summary={summary}
+        currentUser={currentUser}
+        loading={loadingSummary}
+      />
+      {ordersError ? (
+        <div className="p-4 bg-error-light border border-error/30 rounded-xl text-error text-sm font-medium">
+          {ordersError}
+        </div>
+      ) : (
+        <StaffWorkQueue
+          orders={orders}
+          loading={loadingOrders}
+          selectedStatus={selectedStatus}
+          onStatusChange={setSelectedStatus}
+          onSelectOrder={setSelectedOrder}
+          searchQuery={globalSearch}
+          onSearchChange={setGlobalSearch}
+        />
+      )}
+
+      {/* Order detail drawer */}
+      <Drawer
+        isOpen={selectedOrder !== null}
+        onClose={() => setSelectedOrder(null)}
+        title={
+          selectedOrder && (
+            <div className="flex items-center gap-2.5">
+              <span>ORDER #{selectedOrder.id.slice(0, 8).toUpperCase()}</span>
+              <StatusBadge status={selectedOrder.status} size="sm" />
+            </div>
+          )
+        }
+        subtitle={
+          selectedOrder &&
+          `${selectedOrder.garmentType} for ${
+            selectedOrder.customer
+              ? `${selectedOrder.customer.firstName} ${selectedOrder.customer.lastName}`
+              : 'Customer'
+          }`
+        }
+      >
+        {selectedOrder && (
+          <OrderDetailView
+            orderId={selectedOrder.id}
+            authToken={currentUser.token}
+            onOrderUpdated={handleOrderUpdated}
+          />
+        )}
+      </Drawer>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Customer Portal Shell
+// ─────────────────────────────────────────────────────────────────────────────
+function PortalShell({ currentUser, demoUsers, onUserChange, onLogout }: DashboardShellProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [selectedPortalOrder, setSelectedPortalOrder] = useState<CustomerPortalOrder | null>(null);
+  const [selectedCatalogTenantId, setSelectedCatalogTenantId] = useState<string | null>(null);
+
+  const pathSegment = location.pathname.split('/portal/')[1]?.split('/')[0] ?? 'marketplace';
+  const activeNavId = pathSegment || 'marketplace';
+
   const getPageTitle = () => {
-    if (isSuperAdmin) {
-      switch (activeNavId) {
-        case 'moderation': return 'Marketplace Moderation';
-        case 'marketplace': return selectedMarketplaceShopId ? 'Shop Storefront' : 'Marketplace Directory';
-        default: return 'Platform Administration';
-      }
-    } else if (isCustomer) {
-      switch (activeNavId) {
-        case 'marketplace': return selectedMarketplaceShopId ? 'Shop Storefront' : 'Explore Bespoke Ateliers';
-        case 'orders': return selectedPortalOrder ? `Order #${selectedPortalOrder.id.slice(0, 8).toUpperCase()}` : 'My Orders';
-        case 'catalog': return 'Shop Catalog & Order';
-        case 'measurements': return 'My Measurements';
-        case 'invoices': return 'My Invoices';
-        default: return 'Customer Portal';
-      }
-    } else if (isOwner) {
-      switch (activeNavId) {
-        case 'dashboard': return 'Dashboard';
-        case 'orders': return 'All Orders';
-        case 'customers': return 'Customers';
-        case 'measurements': return 'Measurements';
-        case 'fabric': return 'Fabric Inventory';
-        case 'staff': return 'Staff';
-        case 'products': return 'Products & Services';
-        case 'billing': return 'Billing & Invoices';
-        case 'reports': return 'Reports';
-        case 'marketplace-settings': return 'Marketplace Profile Settings';
-        case 'marketplace': return selectedMarketplaceShopId ? 'Shop Storefront' : 'Marketplace Directory';
-        case 'settings': return 'Settings';
-        default: return 'Dashboard';
-      }
-    } else {
-      switch (activeNavId) {
-        case 'orders': return 'All Shop Orders';
-        case 'customers': return 'Customer Directory';
-        case 'measurements': return 'Customer Measurements';
-        case 'tasks':
-        default: return 'My Work & Tasks';
-      }
+    switch (activeNavId) {
+      case 'marketplace':  return 'Explore Bespoke Ateliers';
+      case 'orders':       return selectedPortalOrder ? `Order #${selectedPortalOrder.id.slice(0, 8).toUpperCase()}` : 'My Orders';
+      case 'catalog':      return 'Shop Catalog & Order';
+      case 'measurements': return 'My Measurements';
+      case 'invoices':     return 'My Invoices';
+      default:             return 'Customer Portal';
     }
+  };
+
+  const handleNavigate = (target: string) => {
+    if (target.startsWith('/')) {
+      navigate(target);
+      setSelectedPortalOrder(null);
+      return;
+    }
+    const idToPath: Record<string, string> = {
+      marketplace: '/portal/marketplace',
+      orders: '/portal/orders',
+      catalog: '/portal/catalog',
+      measurements: '/portal/measurements',
+      invoices: '/portal/invoices',
+    };
+    navigate(idToPath[target] ?? `/portal/${target}`);
+    setSelectedPortalOrder(null);
   };
 
   return (
     <AppShell
       pageTitle={getPageTitle()}
-      breadcrumb={
-        isSuperAdmin
-          ? 'DarziDesk Platform Admin'
-          : isCustomer
-          ? 'DarziDesk Bespoke Portal'
-          : isOwner
-          ? 'DarziDesk Owner'
-          : 'DarziDesk Workshop'
-      }
+      breadcrumb="DarziDesk Bespoke Portal"
       activeNavId={activeNavId}
-      onNavigate={(id) => {
-        setActiveNavId(id);
-        setSelectedOrder(null);
-        setSelectedPortalOrder(null);
-        setSelectedMarketplaceShopId(null);
-      }}
+      onNavigate={handleNavigate}
       currentUser={currentUser}
-      onSelectPersona={(u) => {
-        onUserChange(u);
-        setSelectedOrder(null);
-        setSelectedPortalOrder(null);
-        setSelectedMarketplaceShopId(null);
-      }}
+      onSelectPersona={(u) => { onUserChange(u); navigate(defaultRouteForRole(u.role)); }}
       demoUsers={demoUsers}
-      searchValue={globalSearch}
-      onSearchChange={setGlobalSearch}
+      onLogout={onLogout}
     >
-      {isSuperAdmin ? (
-        // ── SUPER ADMIN VIEWS ────────────────────────────────────────────────
-        <>
-          {activeNavId === 'admin-tenants' && (
-            <SuperAdminTenantsView authToken={currentUser.token} />
-          )}
-          {activeNavId === 'admin-revenue' && (
-            <SuperAdminRevenueView authToken={currentUser.token} />
-          )}
-          {activeNavId === 'admin-plans' && (
-            <SuperAdminPlansView authToken={currentUser.token} />
-          )}
-          {activeNavId === 'moderation' && (
-            <SuperAdminModerationView
-              authToken={currentUser.token}
-              onPreviewStorefront={(tenantId) => {
-                setSelectedMarketplaceShopId(tenantId);
-                setActiveNavId('marketplace');
-              }}
-            />
-          )}
-          {activeNavId === 'marketplace' && !selectedMarketplaceShopId && (
+      <Routes>
+        <Route index element={<Navigate to="/portal/marketplace" replace />} />
+        <Route
+          path="marketplace"
+          element={
             <MarketplaceDiscoveryView
-              onSelectShop={(shop) => setSelectedMarketplaceShopId(shop.id)}
+              onSelectShop={(shop) => navigate(`/portal/marketplace/${shop.id}`)}
             />
-          )}
-          {activeNavId === 'marketplace' && selectedMarketplaceShopId && (
-            <PublicShopStorefrontView
-              shopId={selectedMarketplaceShopId}
-              onBack={() => setSelectedMarketplaceShopId(null)}
-              onStartOrder={() => { alert('Switch to Customer persona to test placing a bespoke order.'); }}
-            />
-          )}
-        </>
-      ) : isCustomer ? (
-        // ── CUSTOMER PORTAL VIEWS ──────────────────────────────────────────
-        <>
-          {activeNavId === 'marketplace' && !selectedMarketplaceShopId && (
-            <MarketplaceDiscoveryView
-              onSelectShop={(shop) => setSelectedMarketplaceShopId(shop.id)}
-            />
-          )}
-          {activeNavId === 'marketplace' && selectedMarketplaceShopId && (
-            <PublicShopStorefrontView
-              shopId={selectedMarketplaceShopId}
-              onBack={() => setSelectedMarketplaceShopId(null)}
+          }
+        />
+        <Route
+          path="marketplace/:shopId"
+          element={
+            <MarketplaceStorefrontRoute
               onStartOrder={(tenantId) => {
                 setSelectedCatalogTenantId(tenantId);
-                setSelectedMarketplaceShopId(null);
-                setActiveNavId('catalog');
+                navigate('/portal/catalog');
               }}
             />
-          )}
-          {activeNavId === 'orders' && !selectedPortalOrder && (
-            <CustomerOrdersView
-              authToken={currentUser.token}
-              onSelectOrder={(order) => setSelectedPortalOrder(order)}
-              onNavigateToCatalog={() => setActiveNavId('catalog')}
-            />
-          )}
-          {activeNavId === 'orders' && selectedPortalOrder && (
-            <CustomerOrderDetailView
-              orderId={selectedPortalOrder.id}
-              authToken={currentUser.token}
-              onBack={() => setSelectedPortalOrder(null)}
-            />
-          )}
-          {activeNavId === 'catalog' && (
+          }
+        />
+        <Route
+          path="orders"
+          element={
+            !selectedPortalOrder ? (
+              <CustomerOrdersView
+                authToken={currentUser.token}
+                onSelectOrder={setSelectedPortalOrder}
+                onNavigateToCatalog={() => navigate('/portal/catalog')}
+              />
+            ) : (
+              <CustomerOrderDetailView
+                orderId={selectedPortalOrder.id}
+                authToken={currentUser.token}
+                onBack={() => setSelectedPortalOrder(null)}
+              />
+            )
+          }
+        />
+        <Route
+          path="catalog"
+          element={
             <ShopCatalogView
               authToken={currentUser.token}
               defaultTenantId={selectedCatalogTenantId || undefined}
               onOrderCreated={() => {
-                setActiveNavId('orders');
+                navigate('/portal/orders');
                 setSelectedPortalOrder(null);
               }}
             />
-          )}
-          {activeNavId === 'measurements' && (
+          }
+        />
+        <Route
+          path="measurements"
+          element={
             <CustomerMeasurementsView
               authToken={currentUser.token}
-              onNavigateToCatalog={() => setActiveNavId('catalog')}
+              onNavigateToCatalog={() => navigate('/portal/catalog')}
             />
-          )}
-          {activeNavId === 'invoices' && (
-            <CustomerInvoicesView authToken={currentUser.token} />
-          )}
-        </>
-      ) : isOwner ? (
-        // ── OWNER VIEWS ──────────────────────────────────────────────────────
-        <>
-          {activeNavId === 'dashboard' && (
-            <OwnerDashboardView
-              authToken={currentUser.token}
-              currentUser={currentUser}
-              onNavigate={setActiveNavId}
-            />
-          )}
-          {activeNavId === 'marketplace-settings' && (
-            <OwnerMarketplaceSettingsView
-              authToken={currentUser.token}
-              onPreviewStorefront={(tenantId) => {
-                setSelectedMarketplaceShopId(tenantId);
-                setActiveNavId('marketplace');
-              }}
-            />
-          )}
-          {activeNavId === 'marketplace' && !selectedMarketplaceShopId && (
-            <MarketplaceDiscoveryView
-              onSelectShop={(shop) => setSelectedMarketplaceShopId(shop.id)}
-            />
-          )}
-          {activeNavId === 'marketplace' && selectedMarketplaceShopId && (
-            <PublicShopStorefrontView
-              shopId={selectedMarketplaceShopId}
-              onBack={() => setSelectedMarketplaceShopId(null)}
-              onStartOrder={() => { alert('Switch to Customer persona to test placing a bespoke order.'); }}
-            />
-          )}
-          {activeNavId === 'orders' && <OwnerOrdersView authToken={currentUser.token} />}
-          {(activeNavId === 'customers' || activeNavId === 'measurements') && (
-            <CustomerDirectoryView authToken={currentUser.token} />
-          )}
-          {activeNavId === 'fabric' && <OwnerFabricView authToken={currentUser.token} />}
-          {activeNavId === 'staff' && <OwnerStaffView authToken={currentUser.token} />}
-          {activeNavId === 'billing' && <OwnerInvoicesView authToken={currentUser.token} />}
-          {(activeNavId === 'reports' || activeNavId === 'products' || activeNavId === 'settings') && (
-            <PlaceholderView viewId={activeNavId} />
-          )}
-        </>
-      ) : (
-        // ── STAFF VIEWS ──────────────────────────────────────────────────────
-        <>
-          {(activeNavId === 'tasks' || activeNavId === 'orders') && (
-            <div className="space-y-6">
-              <StaffKpiCards
-                orders={orders}
-                summary={summary}
-                currentUser={currentUser}
-                loading={loadingSummary}
-              />
-              {ordersError ? (
-                <div className="p-4 bg-error-light border border-error/30 rounded-xl text-error text-sm font-medium">
-                  {ordersError}
-                </div>
-              ) : (
-                <StaffWorkQueue
-                  orders={orders}
-                  loading={loadingOrders}
-                  selectedStatus={selectedStatus}
-                  onStatusChange={setSelectedStatus}
-                  onSelectOrder={(order) => setSelectedOrder(order)}
-                  searchQuery={globalSearch}
-                  onSearchChange={setGlobalSearch}
-                />
-              )}
-            </div>
-          )}
-          {(activeNavId === 'customers' || activeNavId === 'measurements') && (
-            <CustomerDirectoryView authToken={currentUser.token} />
-          )}
-        </>
-      )}
-
-      {/* ── Canonical Drawer for Staff Order Details ─────────────────────── */}
-      {currentUser && !isOwner && !isCustomer && (
-        <Drawer
-          isOpen={selectedOrder !== null}
-          onClose={() => setSelectedOrder(null)}
-          title={
-            selectedOrder && (
-              <div className="flex items-center gap-2.5">
-                <span>ORDER #{selectedOrder.id.slice(0, 8).toUpperCase()}</span>
-                <StatusBadge status={selectedOrder.status} size="sm" />
-              </div>
-            )
           }
-          subtitle={
-            selectedOrder &&
-            `${selectedOrder.garmentType} for ${
-              selectedOrder.customer
-                ? `${selectedOrder.customer.firstName} ${selectedOrder.customer.lastName}`
-                : 'Customer'
-            }`
-          }
-        >
-          {selectedOrder && (
-            <OrderDetailView
-              orderId={selectedOrder.id}
-              authToken={currentUser.token}
-              onOrderUpdated={handleOrderUpdated}
-            />
-          )}
-        </Drawer>
-      )}
+        />
+        <Route path="invoices" element={<CustomerInvoicesView authToken={currentUser.token} />} />
+        <Route path="*" element={<Navigate to="/portal/marketplace" replace />} />
+      </Routes>
     </AppShell>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Public Marketplace route (unauthenticated, accessible from landing)
+// Super Admin Shell
+// ─────────────────────────────────────────────────────────────────────────────
+function AdminShell({ currentUser, demoUsers, onUserChange, onLogout }: DashboardShellProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [selectedMarketplaceShopId, setSelectedMarketplaceShopId] = useState<string | null>(null);
+
+  const pathSegment = location.pathname.split('/admin/')[1]?.split('/')[0] ?? '';
+  const activeNavId = pathSegment
+    ? (pathSegment === 'moderation' || pathSegment === 'marketplace' ? pathSegment : `admin-${pathSegment}`)
+    : 'admin-tenants';
+
+  const getPageTitle = () => {
+    switch (activeNavId) {
+      case 'admin-tenants':  return 'Tenants & Shops';
+      case 'admin-revenue':  return 'Revenue & Growth';
+      case 'admin-plans':    return 'Subscription Plans';
+      case 'admin-moderation': return 'Marketplace Moderation';
+      case 'admin-marketplace': return selectedMarketplaceShopId ? 'Shop Storefront' : 'Public Directory';
+      default:               return 'Platform Administration';
+    }
+  };
+
+  const handleNavigate = (target: string) => {
+    if (target.startsWith('/')) {
+      navigate(target);
+      setSelectedMarketplaceShopId(null);
+      return;
+    }
+    const path = target.startsWith('admin-') ? `/admin/${target.slice(6)}` : `/admin/${target}`;
+    const idToPath: Record<string, string> = {
+      'admin-tenants':    '/admin/tenants',
+      'admin-revenue':    '/admin/revenue',
+      'admin-plans':      '/admin/plans',
+      'moderation':       '/admin/moderation',
+      'marketplace':      '/admin/marketplace',
+    };
+    navigate(idToPath[target] ?? path);
+    setSelectedMarketplaceShopId(null);
+  };
+
+  return (
+    <AppShell
+      pageTitle={getPageTitle()}
+      breadcrumb="DarziDesk Platform Admin"
+      activeNavId={activeNavId}
+      onNavigate={handleNavigate}
+      currentUser={currentUser}
+      onSelectPersona={(u) => { onUserChange(u); navigate(defaultRouteForRole(u.role)); }}
+      demoUsers={demoUsers}
+      onLogout={onLogout}
+    >
+      <Routes>
+        <Route index element={<Navigate to="/admin/tenants" replace />} />
+        <Route path="tenants" element={<SuperAdminTenantsView authToken={currentUser.token} />} />
+        <Route path="revenue" element={<SuperAdminRevenueView authToken={currentUser.token} />} />
+        <Route path="plans" element={<SuperAdminPlansView authToken={currentUser.token} />} />
+        <Route
+          path="moderation"
+          element={
+            <SuperAdminModerationView
+              authToken={currentUser.token}
+              onPreviewStorefront={(tenantId) => {
+                setSelectedMarketplaceShopId(tenantId);
+                navigate('/admin/marketplace');
+              }}
+            />
+          }
+        />
+        <Route
+          path="marketplace"
+          element={
+            !selectedMarketplaceShopId ? (
+              <MarketplaceDiscoveryView onSelectShop={(shop) => setSelectedMarketplaceShopId(shop.id)} />
+            ) : (
+              <PublicShopStorefrontView
+                shopId={selectedMarketplaceShopId}
+                onBack={() => setSelectedMarketplaceShopId(null)}
+                onStartOrder={() => { alert('Switch to Customer persona to test placing a bespoke order.'); }}
+              />
+            )
+          }
+        />
+        <Route path="*" element={<Navigate to="/admin/tenants" replace />} />
+      </Routes>
+    </AppShell>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Public Marketplace route (unauthenticated)
 // ─────────────────────────────────────────────────────────────────────────────
 function PublicMarketplaceRoute() {
-  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-6 pt-8 pb-16">
-        {!selectedShopId ? (
-          <MarketplaceDiscoveryView onSelectShop={(shop) => setSelectedShopId(shop.id)} />
-        ) : (
-          <PublicShopStorefrontView
-            shopId={selectedShopId}
-            onBack={() => setSelectedShopId(null)}
-            onStartOrder={() => { window.location.href = '/login'; }}
+        <Routes>
+          <Route
+            index
+            element={
+              <MarketplaceDiscoveryView
+                onSelectShop={(shop) => navigate(`/marketplace/${shop.id}`)}
+              />
+            }
           />
-        )}
+          <Route
+            path=":shopId"
+            element={
+              <MarketplaceStorefrontRoute
+                onStartOrder={() => { window.location.href = '/login'; }}
+              />
+            }
+          />
+        </Routes>
       </div>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Root App — URL routing
+// Root App
 // ─────────────────────────────────────────────────────────────────────────────
 export default function App() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [currentUser, setCurrentUser] = useState<DemoUser | null>(null);
+
+  // ── 1. Synchronous init — eliminates the null-flash race on page refresh ──
+  const [currentUser, setCurrentUser] = useState<DemoUser | null>(buildUserFromStorage);
   const [demoUsers, setDemoUsers] = useState<DemoUser[]>([]);
 
-  // ── 1. Boot: load dev demo personas in DEV mode ───────────────────────────
+  // ── 2. Bootstrapping gate — true while token is being validated ──────────
+  //    Protected routes show <BootLoader /> instead of redirecting
+  const [bootstrapping, setBootstrapping] = useState(true);
+
+  // ── 3. Boot: validate stored token + optionally load dev personas ─────────
   useEffect(() => {
+    const boot = async () => {
+      // Validate any stored token against the server
+      if (currentUser) {
+        const validated = await validateToken(currentUser);
+        if (!validated) {
+          // Token is expired or revoked — clear and force login
+          clearStoredAuth();
+          setCurrentUser(null);
+        } else {
+          setCurrentUser(validated);
+        }
+      }
+      setBootstrapping(false);
+    };
+
+    // In DEV: also load demo personas for the switcher
     if (import.meta.env.DEV) {
       fetch('/api/dev/demo-session')
         .then((res) => res.json())
@@ -448,43 +682,44 @@ export default function App() {
           const payload: DemoSessionData = json.data || json;
           if (payload.users?.length > 0) {
             setDemoUsers(payload.users);
-            // If user has not logged in yet, default to first persona
-            const stored = getStoredAuth();
-            if (!stored && !currentUser) {
+            // If no stored auth at all, use first demo persona (dev convenience only)
+            if (!currentUser) {
               setCurrentUser(payload.users[0]);
             }
           }
         })
-        .catch((err) => console.warn('Could not fetch dev demo sessions:', err));
+        .catch((err) => console.warn('Could not fetch dev demo sessions:', err))
+        .finally(() => boot());
+    } else {
+      boot();
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // runs once on mount only
 
-  // ── 2. Sync currentUser from localStorage whenever location or auth changes
+  // ── 4. Sync auth from storage (cross-tab + LoginPage callback) ────────────
   useEffect(() => {
     const syncFromStorage = () => {
       const stored = getStoredAuth();
-      if (stored && stored.token) {
-        // Look up matching user in demoUsers if available for rich persona data
+      if (stored?.token) {
+        // Try to match to a richer demo persona if available
         const match = demoUsers.find(
           (u) =>
             u.id === stored.userId ||
             (stored.email && u.email.toLowerCase() === stored.email.toLowerCase()),
         );
-        if (match) {
-          setCurrentUser(match);
-        } else {
-          setCurrentUser({
+        setCurrentUser(
+          match ?? {
             id: stored.userId,
             name: stored.name || 'User',
             email: stored.email || '',
             role: stored.role as DemoUser['role'],
             token: stored.token,
-          });
-        }
+          },
+        );
+      } else {
+        setCurrentUser(null);
       }
     };
-
-    syncFromStorage();
 
     window.addEventListener('storage', syncFromStorage);
     window.addEventListener('darzi-auth-change', syncFromStorage);
@@ -492,8 +727,9 @@ export default function App() {
       window.removeEventListener('storage', syncFromStorage);
       window.removeEventListener('darzi-auth-change', syncFromStorage);
     };
-  }, [location.pathname, demoUsers]);
+  }, [demoUsers]);
 
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleUserChange = (newUser: DemoUser) => {
     setCurrentUser(newUser);
     setStoredAuth({
@@ -515,9 +751,17 @@ export default function App() {
     navigate('/login');
   };
 
+  // ── Shared shell props ────────────────────────────────────────────────────
+  const shellProps = {
+    currentUser: currentUser!,
+    demoUsers,
+    onUserChange: handleUserChange,
+    onLogout: handleLogout,
+  };
+
   return (
     <Routes>
-      {/* ── Public routes ────────────────────────────────────────────────── */}
+      {/* ── Public routes ──────────────────────────────────────────────────── */}
       <Route path="/" element={<LandingPage />} />
       <Route
         path="/login"
@@ -529,56 +773,158 @@ export default function App() {
           />
         }
       />
-      <Route path="/marketplace" element={<PublicMarketplaceRoute />} />
+      <Route path="/marketplace/*" element={<PublicMarketplaceRoute />} />
 
-      {/* ── Authenticated app routes ─────────────────────────────────────── */}
+      {/* ── Dashboard (Owner + Staff) ────────────────────────────────────── */}
       <Route
-        path="/admin"
         element={
-          currentUser ? (
-            <AuthenticatedShell
-              currentUser={currentUser}
-              demoUsers={demoUsers}
-              onUserChange={handleUserChange}
-              onLogout={handleLogout}
-            />
-          ) : (
-            <Navigate to="/login" replace />
-          )
+          <ProtectedRoute
+            currentUser={currentUser}
+            bootstrapping={bootstrapping}
+            allowedRoles={['SHOP_OWNER', 'STAFF']}
+            redirectTo="/login"
+          />
         }
-      />
-      <Route
-        path="/dashboard"
-        element={
-          currentUser ? (
-            <AuthenticatedShell
-              currentUser={currentUser}
-              demoUsers={demoUsers}
-              onUserChange={handleUserChange}
-              onLogout={handleLogout}
-            />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
-      <Route
-        path="/portal"
-        element={
-          currentUser ? (
-            <AuthenticatedShell
-              currentUser={currentUser}
-              demoUsers={demoUsers}
-              onUserChange={handleUserChange}
-              onLogout={handleLogout}
-            />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
+      >
+        <Route
+          path="/dashboard"
+          element={<DashboardShell {...shellProps} currentUser={currentUser!} />}
+        >
+          {/* Owner routes */}
+          <Route index element={
+            currentUser?.role === 'SHOP_OWNER'
+              ? <Navigate to="/dashboard/home" replace />
+              : <Navigate to="/dashboard/tasks" replace />
+          } />
+          <Route
+            path="home"
+            element={
+              currentUser?.role === 'SHOP_OWNER' ? (
+                <OwnerDashboardView
+                  authToken={currentUser.token}
+                  currentUser={currentUser}
+                  onNavigate={(id) => navigate(id.startsWith('/') ? id : `/dashboard/${id === 'dashboard' ? 'home' : id}`)}
+                />
+              ) : (
+                <Navigate to="/dashboard/tasks" replace />
+              )
+            }
+          />
+          <Route
+            path="orders"
+            element={
+              currentUser?.role === 'SHOP_OWNER' ? (
+                <OwnerOrdersView authToken={currentUser!.token} />
+              ) : (
+                <StaffTasksPage currentUser={currentUser!} />
+              )
+            }
+          />
+          <Route path="customers" element={<CustomerDirectoryView authToken={currentUser?.token ?? ''} />} />
+          <Route path="measurements" element={<CustomerDirectoryView authToken={currentUser?.token ?? ''} />} />
+          <Route
+            path="fabric"
+            element={
+              currentUser?.role === 'SHOP_OWNER' ? (
+                <OwnerFabricView authToken={currentUser.token} />
+              ) : (
+                <Navigate to="/dashboard/tasks" replace />
+              )
+            }
+          />
+          <Route
+            path="staff"
+            element={
+              currentUser?.role === 'SHOP_OWNER' ? (
+                <OwnerStaffView authToken={currentUser.token} />
+              ) : (
+                <Navigate to="/dashboard/tasks" replace />
+              )
+            }
+          />
+          <Route
+            path="billing"
+            element={
+              currentUser?.role === 'SHOP_OWNER' ? (
+                <OwnerInvoicesView authToken={currentUser.token} />
+              ) : (
+                <Navigate to="/dashboard/tasks" replace />
+              )
+            }
+          />
+          <Route path="products" element={<PlaceholderView viewId="products" />} />
+          <Route path="reports" element={<PlaceholderView viewId="reports" />} />
+          <Route path="settings" element={<PlaceholderView viewId="settings" />} />
+          <Route
+            path="marketplace-settings"
+            element={
+              currentUser?.role === 'SHOP_OWNER' ? (
+                <OwnerMarketplaceSettingsView
+                  authToken={currentUser.token}
+                  onPreviewStorefront={(tenantId) => navigate(`/dashboard/marketplace/${tenantId}`)}
+                />
+              ) : (
+                <Navigate to="/dashboard/tasks" replace />
+              )
+            }
+          />
+          <Route
+            path="marketplace"
+            element={
+              <MarketplaceDiscoveryView
+                onSelectShop={(shop) => navigate(`/dashboard/marketplace/${shop.id}`)}
+              />
+            }
+          />
+          <Route
+            path="marketplace/:shopId"
+            element={
+              <MarketplaceStorefrontRoute
+                onStartOrder={() => { alert('Switch to Customer persona to test placing a bespoke order.'); }}
+              />
+            }
+          />
+          {/* Staff tasks (default Staff landing) */}
+          <Route path="tasks" element={<StaffTasksPage currentUser={currentUser!} />} />
+          <Route path="*" element={<Navigate to={currentUser?.role === 'SHOP_OWNER' ? '/dashboard/home' : '/dashboard/tasks'} replace />} />
+        </Route>
+      </Route>
 
-      {/* Catch-all → landing page */}
+      {/* ── Customer Portal ─────────────────────────────────────────────────── */}
+      <Route
+        element={
+          <ProtectedRoute
+            currentUser={currentUser}
+            bootstrapping={bootstrapping}
+            allowedRoles={['CUSTOMER']}
+            redirectTo="/login"
+          />
+        }
+      >
+        <Route
+          path="/portal/*"
+          element={<PortalShell {...shellProps} currentUser={currentUser!} />}
+        />
+      </Route>
+
+      {/* ── Super Admin ─────────────────────────────────────────────────────── */}
+      <Route
+        element={
+          <ProtectedRoute
+            currentUser={currentUser}
+            bootstrapping={bootstrapping}
+            allowedRoles={['SUPER_ADMIN']}
+            redirectTo={currentUser ? defaultRouteForRole(currentUser.role) : '/login'}
+          />
+        }
+      >
+        <Route
+          path="/admin/*"
+          element={<AdminShell {...shellProps} currentUser={currentUser!} />}
+        />
+      </Route>
+
+      {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
