@@ -1,0 +1,25 @@
+{
+  "name": "darzi-desk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DarziDesk — multi-tenant SaaS helpdesk platform",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "dev:backend": "npm run dev --workspace=apps/backend",
+    "dev:frontend": "npm run dev --workspace=apps/frontend"
+  },
+  "overrides": {
+    "express": {
+      "qs": "^6.16.0"
+    }
+  }
+}

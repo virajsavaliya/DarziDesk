@@ -1,0 +1,96 @@
+@import "tailwindcss";
+@import "./styles/tokens.css";
+
+/*
+ * ============================================================
+ * DARZI DESK — DESIGN TOKEN REFERENCE
+ * ============================================================
+ *
+ * All colors in this product must use the semantic token names
+ * below. Never hardcode hex values in components or pages.
+ *
+ * USAGE QUICK-REFERENCE
+ * ─────────────────────
+ *   Structure / Nav / Trust    →  bg-brand, bg-brand-dark
+ *   CTA / Action / Attention   →  bg-accent, text-accent   (orange — use sparingly)
+ *   Page backgrounds           →  bg-background, bg-surface, bg-surface-muted
+ *   Body text                  →  text-text-primary, text-text-secondary, text-text-muted
+ *   Dividers / borders         →  border-border, border-border-strong
+ *   System states only         →  bg-success / bg-warning / bg-error / bg-info
+ *   Order status badges/dots   →  bg-status-placed, bg-status-measurement,
+ *                                 bg-status-cutting, bg-status-stitching,
+ *                                 bg-status-qc, bg-status-ready,
+ *                                 bg-status-delivered, bg-status-cancelled
+ *
+ * DESIGN RULES (enforced by convention, not code)
+ * ─────────────────────────────────────────────────
+ *   • Visual ratio target:  70% neutral/white · 20% navy · 10% orange+semantic
+ *   • Navy (#163B5C) = structure, navigation, trust.
+ *   • Orange (#F28C28) = action / CTA / attention ONLY — never every button.
+ *   • Semantic colors (success/warning/error/info) = system state ONLY.
+ *     Do NOT use them as decorative or brand colors.
+ *   • Status colors = badges, timeline dots, small indicators ONLY.
+ *     Never use as a full saturated card background.
+ *   • Orange stays the same (#F28C28) in both light and dark mode.
+ *
+ * ============================================================
+ */
+
+/* ── Dark mode: triggered by `.dark` class on <html> ─────── */
+@variant dark (&:where(.dark, .dark *));
+
+/* ── Design Tokens ───────────────────────────────────────── */
+@theme {
+  /* ── Brand ─────────────────────────────────────────────── */
+  --color-brand:        #163B5C;   /* Navy — structure / navigation / trust    */
+  --color-brand-dark:   #102C44;   /* Darker navy — hover states on brand el.  */
+  --color-accent:       #F28C28;   /* Orange — CTA / action / attention ONLY   */
+  --color-accent-light: #FFF1DF;   /* Tinted orange — accent chip backgrounds  */
+
+  /* ── Neutrals ──────────────────────────────────────────── */
+  --color-background:    #F8FAFC;  /* Page canvas                              */
+  --color-surface:       #FFFFFF;  /* Cards, panels, modals                    */
+  --color-surface-muted: #F1F5F9;  /* Subtle alt surface (sidebars, zebra rows)*/
+  --color-text-primary:  #1E293B;  /* Primary body text                        */
+  --color-text-secondary:#64748B;  /* Secondary / supporting text              */
+  --color-text-muted:    #94A3B8;  /* Muted / placeholder / disabled text      */
+  --color-border:        #E2E8F0;  /* Default dividers & input borders         */
+  --color-border-strong: #CBD5E1;  /* Stronger dividers when more contrast needed */
+
+  /* ── Semantic — system state ONLY, never decorative ─────── */
+  --color-success:       #22A06B;
+  --color-success-light: #E8F7F0;
+  --color-warning:       #E9A23B;
+  --color-warning-light: #FFF6E5;
+  --color-error:         #D64545;
+  --color-error-light:   #FDECEC;
+  --color-info:          #3B82F6;
+  --color-info-light:    #EFF6FF;
+
+  /* ── Order status — badges / timeline dots / indicators ─── */
+  /* Must stay in sync with the Phase 4 Order state machine    */
+  --color-status-placed:      #3B82F6;  /* Placed       */
+  --color-status-measurement: #6366F1;  /* Measurement  */
+  --color-status-cutting:     #F59E0B;  /* Cutting       */
+  --color-status-stitching:   #F28C28;  /* Stitching     */
+  --color-status-qc:          #8B5CF6;  /* Quality Check */
+  --color-status-ready:       #14B8A6;  /* Ready         */
+  --color-status-delivered:   #22A06B;  /* Delivered     */
+  --color-status-cancelled:   #D64545;  /* Cancelled     */
+
+  /* ── Dark Mode Palette ─────────────────────────────────── */
+  /* Activated via .dark class on <html>                       */
+  /* Orange (--color-accent: #F28C28) is unchanged in dark mode*/
+  --color-dark-background:    #0F172A;
+  --color-dark-sidebar:       #111827;
+  --color-dark-surface:       #1E293B;
+  --color-dark-surface-muted: #334155;
+  --color-dark-text-primary:  #F8FAFC;
+  --color-dark-text-secondary:#CBD5E1;
+  --color-dark-text-muted:    #94A3B8;
+  --color-dark-border:        #334155;
+  --color-dark-success:       #34D399;
+  --color-dark-warning:       #FBBF24;
+  --color-dark-error:         #F87171;
+  --color-dark-info:          #60A5FA;
+}

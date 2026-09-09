@@ -1,0 +1,86 @@
+/*
+ * ============================================================
+ * DARZI DESK — CSS CUSTOM PROPERTIES MIRROR
+ * ============================================================
+ *
+ * This file mirrors every design token as a CSS custom property
+ * (--darzi-* namespace) for use in raw CSS, inline styles, or
+ * any context where Tailwind utility classes are not available
+ * (e.g., canvas elements, SVG fills, third-party widget overrides).
+ *
+ * Import:  @import "./styles/tokens.css";  (already done in index.css)
+ * Usage:   color: var(--darzi-brand);
+ *          background: var(--darzi-accent);
+ *
+ * IMPORTANT: Keep this file in sync with the @theme block in
+ * index.css whenever tokens are added, changed, or removed.
+ * ============================================================
+ */
+
+:root {
+  /* ── Brand ─────────────────────────────────────────────── */
+  --darzi-brand:              #163B5C;
+  --darzi-brand-dark:         #102C44;
+  --darzi-accent:             #F28C28;
+  --darzi-accent-light:       #FFF1DF;
+
+  /* ── Neutrals ──────────────────────────────────────────── */
+  --darzi-background:         #F8FAFC;
+  --darzi-surface:            #FFFFFF;
+  --darzi-surface-muted:      #F1F5F9;
+  --darzi-text-primary:       #1E293B;
+  --darzi-text-secondary:     #64748B;
+  --darzi-text-muted:         #94A3B8;
+  --darzi-border:             #E2E8F0;
+  --darzi-border-strong:      #CBD5E1;
+
+  /* ── Semantic — system state only ──────────────────────── */
+  --darzi-success:            #22A06B;
+  --darzi-success-light:      #E8F7F0;
+  --darzi-warning:            #E9A23B;
+  --darzi-warning-light:      #FFF6E5;
+  --darzi-error:              #D64545;
+  --darzi-error-light:        #FDECEC;
+  --darzi-info:               #3B82F6;
+  --darzi-info-light:         #EFF6FF;
+
+  /* ── Order Status ──────────────────────────────────────── */
+  --darzi-status-placed:      #3B82F6;
+  --darzi-status-measurement: #6366F1;
+  --darzi-status-cutting:     #F59E0B;
+  --darzi-status-stitching:   #F28C28;
+  --darzi-status-qc:          #8B5CF6;
+  --darzi-status-ready:       #14B8A6;
+  --darzi-status-delivered:   #22A06B;
+  --darzi-status-cancelled:   #D64545;
+
+  /* ── Dark Mode Tokens (available globally for JS/inline use) */
+  --darzi-dark-background:    #0F172A;
+  --darzi-dark-sidebar:       #111827;
+  --darzi-dark-surface:       #1E293B;
+  --darzi-dark-surface-muted: #334155;
+  --darzi-dark-text-primary:  #F8FAFC;
+  --darzi-dark-text-secondary:#CBD5E1;
+  --darzi-dark-text-muted:    #94A3B8;
+  --darzi-dark-border:        #334155;
+  --darzi-dark-success:       #34D399;
+  --darzi-dark-warning:       #FBBF24;
+  --darzi-dark-error:         #F87171;
+  --darzi-dark-info:          #60A5FA;
+}
+
+/* Dark mode overrides — active surface/text/border tokens swap automatically */
+.dark {
+  --darzi-background:     #0F172A;
+  --darzi-surface:        #1E293B;
+  --darzi-surface-muted:  #334155;
+  --darzi-text-primary:   #F8FAFC;
+  --darzi-text-secondary: #CBD5E1;
+  --darzi-text-muted:     #94A3B8;
+  --darzi-border:         #334155;
+  --darzi-success:        #34D399;
+  --darzi-warning:        #FBBF24;
+  --darzi-error:          #F87171;
+  --darzi-info:           #60A5FA;
+  /* --darzi-accent stays #F28C28 in dark mode (by design) */
+}
