@@ -20,6 +20,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, Building2, User, AlertCircle, ArrowLeft, Loader } from 'lucide-react';
 import logoForDark from '../../assets/logo_for_dark.png';
 import logoForLight from '../../assets/logo_for_light.png';
+import type { DemoUser } from '../../types/dashboard';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth state helpers
@@ -32,6 +33,11 @@ export interface StoredAuth {
   role: string;
   userId: string;
   name?: string;
+  email?: string;
+}
+
+export interface LoginPageProps {
+  onLogin?: (user: DemoUser) => void;
 }
 
 /** Read stored auth from localStorage. Returns null if absent or malformed. */
@@ -85,7 +91,7 @@ function redirectForRole(role: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 // LoginPage
 // ─────────────────────────────────────────────────────────────────────────────
-export const LoginPage: React.FC = () => {
+export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialMode = searchParams.get('mode') === 'register' ? 'register' : 'business';
@@ -164,7 +170,19 @@ export const LoginPage: React.FC = () => {
         ? `${json.data.user.firstName} ${json.data.user.lastName}`.trim()
         : undefined;
 
-      setStoredAuth({ token, role, userId, name });
+      const userObj: DemoUser = {
+        id: userId,
+        name: name || (role === 'SHOP_OWNER' ? 'Shop Owner' : 'Staff Member'),
+        email: email.trim(),
+        role: role as DemoUser['role'],
+        token,
+      };
+
+      setStoredAuth({ token, role, userId, name: userObj.name, email: userObj.email });
+      window.dispatchEvent(new Event('darzi-auth-change'));
+      if (onLogin) {
+        onLogin(userObj);
+      }
       navigate(redirectForRole(role));
     } catch {
       setError('Network error. Please check your connection and try again.');
@@ -249,8 +267,23 @@ export const LoginPage: React.FC = () => {
       const token: string = json.data?.token || json.token;
       const payload = decodeJwtPayload(token);
       const userId = (payload?.sub as string) || '';
+      const name = json.data?.customer
+        ? `${json.data.customer.firstName} ${json.data.customer.lastName}`.trim()
+        : undefined;
 
-      setStoredAuth({ token, role: 'CUSTOMER', userId });
+      const userObj: DemoUser = {
+        id: userId,
+        name: name || 'Customer',
+        email: email.includes('@') ? email.trim() : '',
+        role: 'CUSTOMER',
+        token,
+      };
+
+      setStoredAuth({ token, role: 'CUSTOMER', userId, name: userObj.name, email: userObj.email });
+      window.dispatchEvent(new Event('darzi-auth-change'));
+      if (onLogin) {
+        onLogin(userObj);
+      }
       navigate('/portal');
     } catch {
       setError('Network error. Please check your connection and try again.');

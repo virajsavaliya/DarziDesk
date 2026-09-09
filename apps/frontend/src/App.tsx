@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import type {
   Order,
   DailySummary,
@@ -12,7 +12,7 @@ import { AppShell } from './components/layout/AppShell';
 
 // ── Landing Page ──────────────────────────────────────────────────────────────
 import { LandingPage } from './components/landing/LandingPage';
-import { LoginPage, getStoredAuth, clearStoredAuth } from './components/landing/LoginPage';
+import { LoginPage, getStoredAuth, setStoredAuth, clearStoredAuth } from './components/landing/LoginPage';
 
 // ── Customer Portal Views ───────────────────────────────────────────────────
 import { CustomerOrdersView } from './components/portal/CustomerOrdersView';
@@ -435,25 +435,12 @@ function PublicMarketplaceRoute() {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [currentUser, setCurrentUser] = useState<DemoUser | null>(null);
   const [demoUsers, setDemoUsers] = useState<DemoUser[]>([]);
 
-  // ── Boot: restore session or fall back to dev demo-session ────────────────
+  // ── 1. Boot: load dev demo personas in DEV mode ───────────────────────────
   useEffect(() => {
-    // 1. Try localStorage auth (from real login via LoginPage)
-    const stored = getStoredAuth();
-    if (stored) {
-      setCurrentUser({
-        id: stored.userId,
-        name: stored.name || 'User',
-        email: '',
-        role: stored.role as DemoUser['role'],
-        token: stored.token,
-      });
-      return;
-    }
-
-    // 2. Fall back to dev demo session (DEV only)
     if (import.meta.env.DEV) {
       fetch('/api/dev/demo-session')
         .then((res) => res.json())
@@ -461,34 +448,90 @@ export default function App() {
           const payload: DemoSessionData = json.data || json;
           if (payload.users?.length > 0) {
             setDemoUsers(payload.users);
-            setCurrentUser(payload.users[0]);
+            // If user has not logged in yet, default to first persona
+            const stored = getStoredAuth();
+            if (!stored && !currentUser) {
+              setCurrentUser(payload.users[0]);
+            }
           }
         })
         .catch((err) => console.warn('Could not fetch dev demo sessions:', err));
     }
   }, []);
 
+  // ── 2. Sync currentUser from localStorage whenever location or auth changes
+  useEffect(() => {
+    const syncFromStorage = () => {
+      const stored = getStoredAuth();
+      if (stored && stored.token) {
+        // Look up matching user in demoUsers if available for rich persona data
+        const match = demoUsers.find(
+          (u) =>
+            u.id === stored.userId ||
+            (stored.email && u.email.toLowerCase() === stored.email.toLowerCase()),
+        );
+        if (match) {
+          setCurrentUser(match);
+        } else {
+          setCurrentUser({
+            id: stored.userId,
+            name: stored.name || 'User',
+            email: stored.email || '',
+            role: stored.role as DemoUser['role'],
+            token: stored.token,
+          });
+        }
+      }
+    };
+
+    syncFromStorage();
+
+    window.addEventListener('storage', syncFromStorage);
+    window.addEventListener('darzi-auth-change', syncFromStorage);
+    return () => {
+      window.removeEventListener('storage', syncFromStorage);
+      window.removeEventListener('darzi-auth-change', syncFromStorage);
+    };
+  }, [location.pathname, demoUsers]);
+
+  const handleUserChange = (newUser: DemoUser) => {
+    setCurrentUser(newUser);
+    setStoredAuth({
+      token: newUser.token,
+      role: newUser.role,
+      userId: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+    });
+  };
+
   const handleLogout = () => {
     clearStoredAuth();
-    setCurrentUser(null);
-    navigate('/');
+    if (import.meta.env.DEV && demoUsers.length > 0) {
+      setCurrentUser(demoUsers[0]);
+    } else {
+      setCurrentUser(null);
+    }
+    navigate('/login');
   };
 
   return (
     <Routes>
       {/* ── Public routes ────────────────────────────────────────────────── */}
       <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/login"
+        element={
+          <LoginPage
+            onLogin={(user) => {
+              setCurrentUser(user);
+            }}
+          />
+        }
+      />
       <Route path="/marketplace" element={<PublicMarketplaceRoute />} />
 
       {/* ── Authenticated app routes ─────────────────────────────────────── */}
-      {/*
-        Security note: these routes render the AppShell UI. They do NOT enforce
-        any client-side access control — that is intentional. The backend RBAC
-        (Phases 1–12) rejects every API call from the wrong role with 403.
-        The redirect from LoginPage to /admin, /dashboard, /portal is UX
-        convenience only, not a security boundary.
-      */}
       <Route
         path="/admin"
         element={
@@ -496,7 +539,7 @@ export default function App() {
             <AuthenticatedShell
               currentUser={currentUser}
               demoUsers={demoUsers}
-              onUserChange={setCurrentUser}
+              onUserChange={handleUserChange}
               onLogout={handleLogout}
             />
           ) : (
@@ -511,7 +554,7 @@ export default function App() {
             <AuthenticatedShell
               currentUser={currentUser}
               demoUsers={demoUsers}
-              onUserChange={setCurrentUser}
+              onUserChange={handleUserChange}
               onLogout={handleLogout}
             />
           ) : (
@@ -526,7 +569,7 @@ export default function App() {
             <AuthenticatedShell
               currentUser={currentUser}
               demoUsers={demoUsers}
-              onUserChange={setCurrentUser}
+              onUserChange={handleUserChange}
               onLogout={handleLogout}
             />
           ) : (
