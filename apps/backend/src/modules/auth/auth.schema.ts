@@ -57,14 +57,26 @@ export const RegisterTenantSchema = z.preprocess(
 export type RegisterTenantInput = z.infer<typeof RegisterTenantSchema>;
 
 // ---------------------------------------------------------------------------
-// Staff / Owner login
+// Staff / Owner / Admin login
 // ---------------------------------------------------------------------------
 
-export const LoginStaffSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-  slug, // Required to scope the user lookup to a specific shop
-});
+export const LoginStaffSchema = z.preprocess(
+  (val: any) => {
+    if (val && typeof val === 'object') {
+      return {
+        ...val,
+        slug: val.slug || val.tenantSlug || val.shopSlug,
+      };
+    }
+    return val;
+  },
+  z.object({
+    email: z.string().email(),
+    password: z.string().min(1),
+    slug: z.string().optional(),
+    tenantSlug: z.string().optional(),
+  }),
+);
 export type LoginStaffInput = z.infer<typeof LoginStaffSchema>;
 
 // ---------------------------------------------------------------------------

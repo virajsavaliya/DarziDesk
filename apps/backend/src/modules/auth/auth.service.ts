@@ -178,15 +178,38 @@ export async function registerTenant(
 export async function loginStaff(
   data: LoginStaffInput,
 ): Promise<{ token: string; user: SafeUser }> {
-  // Step 1: Resolve tenant from slug
-  const tenant = await prisma.tenant.findUnique({ where: { slug: data.slug } });
+  // Step 1: Check if this is a SUPER_ADMIN login (no tenant required)
+  const superAdmin = await prisma.user.findFirst({
+    where: { email: data.email, role: UserRole.SUPER_ADMIN, isActive: true },
+  });
+
+  if (superAdmin) {
+    const valid = await argon2.verify(superAdmin.passwordHash, data.password);
+    if (!valid) {
+      throw new AuthenticationError();
+    }
+    const token = await signStaffToken({
+      sub: superAdmin.id,
+      role: superAdmin.role,
+      tenantId: null,
+    });
+    return { token, user: toSafeUser(superAdmin) };
+  }
+
+  // Step 2: Resolve tenant from slug or tenantSlug
+  const slug = data.slug || data.tenantSlug;
+  if (!slug) {
+    throw new AuthenticationError();
+  }
+
+  const tenant = await prisma.tenant.findUnique({ where: { slug } });
 
   if (!tenant?.isActive) {
     // Generic error — don't reveal whether the slug exists
     throw new AuthenticationError();
   }
 
-  // Step 2: Find user within that tenant (app-level scope — before RLS applies)
+  // Step 3: Find user within that tenant (app-level scope — before RLS applies)
   const user = await prisma.user.findFirst({
     where: { tenantId: tenant.id, email: data.email, isActive: true },
   });
@@ -195,7 +218,7 @@ export async function loginStaff(
     throw new AuthenticationError();
   }
 
-  // Step 3: Verify password
+  // Step 4: Verify password
   const valid = await argon2.verify(user.passwordHash, data.password);
   if (!valid) {
     throw new AuthenticationError();

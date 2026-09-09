@@ -138,7 +138,11 @@ export const LoginPage: React.FC = () => {
       const res = await fetch('/api/auth/login/staff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, tenantSlug: slug }),
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          slug: slug.trim(),
+        }),
       });
 
       if (res.status === 429) {
