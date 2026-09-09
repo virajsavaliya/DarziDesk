@@ -44,23 +44,28 @@ devRouter.use((_req: Request, res: Response, next: NextFunction) => {
  */
 devRouter.get('/demo-session', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const slug = 'darzi-atelier';
-
-    // Find or create demo tenant
-    let tenant = await prisma.tenant.findUnique({ where: { slug } });
+    // Prefer seeded Shree Ganesh Bespoke Tailors shop
+    let tenant = await prisma.tenant.findUnique({ where: { slug: 'shree-ganesh-tailors' } });
+    if (!tenant) {
+      tenant = await prisma.tenant.findUnique({ where: { slug: 'darzi-atelier' } });
+    }
+    if (!tenant) {
+      tenant = await prisma.tenant.findFirst({ orderBy: { createdAt: 'desc' } });
+    }
     if (!tenant) {
       tenant = await prisma.tenant.create({
         data: {
-          name: 'DarziDesk Master Atelier',
-          slug,
+          name: 'Shree Ganesh Bespoke Tailors',
+          slug: 'shree-ganesh-tailors',
           timezone: 'Asia/Kolkata',
+          city: 'Surat',
         },
       });
     }
 
-    const passwordHash = await argon2.hash('DemoPassword123!');
+    const passwordHash = await argon2.hash('Password123!');
 
-    // Find or create Owner
+    // Find Owner
     let owner = await prisma.user.findFirst({
       where: { tenantId: tenant.id, role: UserRole.SHOP_OWNER },
     });
@@ -68,47 +73,53 @@ devRouter.get('/demo-session', async (_req: Request, res: Response, next: NextFu
       owner = await prisma.user.create({
         data: {
           tenantId: tenant.id,
-          email: 'owner@darzi-atelier.com',
+          email: 'owner@shreeganesh.com',
           passwordHash,
-          firstName: 'Vikram',
-          lastName: 'Darzi',
+          firstName: 'Ramesh',
+          lastName: 'Patel',
           role: UserRole.SHOP_OWNER,
         },
       });
     }
 
-    // Find or create Staff 1 (Tailor Ramesh)
-    let staff1 = await prisma.user.findFirst({
-      where: { tenantId: tenant.id, email: 'ramesh@darzi-atelier.com' },
+    // Find all Staff members for this tenant
+    let staffMembers = await prisma.user.findMany({
+      where: { tenantId: tenant.id, role: UserRole.STAFF },
+      orderBy: { createdAt: 'asc' },
     });
-    if (!staff1) {
-      staff1 = await prisma.user.create({
+
+    if (staffMembers.length === 0) {
+      const staff1 = await prisma.user.create({
         data: {
           tenantId: tenant.id,
-          email: 'ramesh@darzi-atelier.com',
+          email: 'karan.cutter@shreeganesh.com',
           passwordHash,
-          firstName: 'Ramesh',
-          lastName: 'Kumar (Cutter & Master)',
+          firstName: 'Karan',
+          lastName: 'Sharma (Master Cutter & Measurer)',
           role: UserRole.STAFF,
         },
       });
-    }
-
-    // Find or create Staff 2 (Tailor Suresh)
-    let staff2 = await prisma.user.findFirst({
-      where: { tenantId: tenant.id, email: 'suresh@darzi-atelier.com' },
-    });
-    if (!staff2) {
-      staff2 = await prisma.user.create({
+      const staff2 = await prisma.user.create({
         data: {
           tenantId: tenant.id,
-          email: 'suresh@darzi-atelier.com',
+          email: 'suresh.tailor@shreeganesh.com',
           passwordHash,
           firstName: 'Suresh',
-          lastName: 'Mistry (Stitching)',
+          lastName: 'Mistry (Senior Stitching Artisan)',
           role: UserRole.STAFF,
         },
       });
+      const staff3 = await prisma.user.create({
+        data: {
+          tenantId: tenant.id,
+          email: 'priya.sales@shreeganesh.com',
+          passwordHash,
+          firstName: 'Priya',
+          lastName: 'Dave (Store & Fabric Consultant)',
+          role: UserRole.STAFF,
+        },
+      });
+      staffMembers = [staff1, staff2, staff3];
     }
 
     // Ensure sample customer, fabric, and order exist for demo testing
@@ -183,6 +194,9 @@ devRouter.get('/demo-session', async (_req: Request, res: Response, next: NextFu
     // Seed sample assigned orders if none exist
     const existingOrdersCount = await prisma.order.count({ where: { tenantId: tenant.id } });
     if (existingOrdersCount === 0) {
+      const primaryStaff = staffMembers[0] ?? owner;
+      const secondaryStaff = staffMembers[1] ?? primaryStaff;
+
       // Order 1 assigned to Staff 1 (CUTTING)
       await prisma.order.create({
         data: {
@@ -193,7 +207,7 @@ devRouter.get('/demo-session', async (_req: Request, res: Response, next: NextFu
           garmentType: GarmentType.SHIRT,
           metersUsed: '2.500',
           status: OrderStatus.CUTTING,
-          assignedStaffId: staff1.id,
+          assignedStaffId: primaryStaff.id,
           priceSnapshot: '1400.00',
           estimatedDeliveryDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Due tomorrow
           notes: 'French cuffs, spread collar',
@@ -201,7 +215,7 @@ devRouter.get('/demo-session', async (_req: Request, res: Response, next: NextFu
             create: [
               { tenantId: tenant.id, toStatus: OrderStatus.PLACED, changedById: owner.id },
               { tenantId: tenant.id, fromStatus: OrderStatus.PLACED, toStatus: OrderStatus.MEASUREMENT_CONFIRMED, changedById: owner.id },
-              { tenantId: tenant.id, fromStatus: OrderStatus.MEASUREMENT_CONFIRMED, toStatus: OrderStatus.CUTTING, changedById: staff1.id },
+              { tenantId: tenant.id, fromStatus: OrderStatus.MEASUREMENT_CONFIRMED, toStatus: OrderStatus.CUTTING, changedById: primaryStaff.id },
             ],
           },
         },
@@ -217,7 +231,7 @@ devRouter.get('/demo-session', async (_req: Request, res: Response, next: NextFu
           garmentType: GarmentType.SHIRT,
           metersUsed: '2.500',
           status: OrderStatus.STITCHING,
-          assignedStaffId: staff2.id,
+          assignedStaffId: secondaryStaff.id,
           priceSnapshot: '1400.00',
           estimatedDeliveryDate: new Date(Date.now() + 48 * 60 * 60 * 1000), // Due in 2 days
           notes: 'Standard collar, single cuff',
@@ -225,8 +239,8 @@ devRouter.get('/demo-session', async (_req: Request, res: Response, next: NextFu
             create: [
               { tenantId: tenant.id, toStatus: OrderStatus.PLACED, changedById: owner.id },
               { tenantId: tenant.id, fromStatus: OrderStatus.PLACED, toStatus: OrderStatus.MEASUREMENT_CONFIRMED, changedById: owner.id },
-              { tenantId: tenant.id, fromStatus: OrderStatus.MEASUREMENT_CONFIRMED, toStatus: OrderStatus.CUTTING, changedById: staff1.id },
-              { tenantId: tenant.id, fromStatus: OrderStatus.CUTTING, toStatus: OrderStatus.STITCHING, changedById: staff2.id },
+              { tenantId: tenant.id, fromStatus: OrderStatus.MEASUREMENT_CONFIRMED, toStatus: OrderStatus.CUTTING, changedById: primaryStaff.id },
+              { tenantId: tenant.id, fromStatus: OrderStatus.CUTTING, toStatus: OrderStatus.STITCHING, changedById: secondaryStaff.id },
             ],
           },
         },
@@ -455,31 +469,35 @@ devRouter.get('/demo-session', async (_req: Request, res: Response, next: NextFu
     }
 
     // Generate tokens for each user
-    const [ownerToken, staff1Token, staff2Token, customerToken, adminToken] = await Promise.all([
-      signStaffToken({
-        sub: owner.id,
-        tenantId: tenant.id,
-        role: owner.role,
-      }),
-      signStaffToken({
-        sub: staff1.id,
-        tenantId: tenant.id,
-        role: staff1.role,
-      }),
-      signStaffToken({
-        sub: staff2.id,
-        tenantId: tenant.id,
-        role: staff2.role,
-      }),
-      signCustomerToken({
-        sub: sampleCustomer.id,
-      }),
-      signStaffToken({
-        sub: superAdmin.id,
-        tenantId: null,
-        role: UserRole.SUPER_ADMIN,
-      }),
-    ]);
+    const ownerToken = await signStaffToken({
+      sub: owner.id,
+      tenantId: tenant.id,
+      role: owner.role,
+    });
+
+    const staffUsersWithTokens = await Promise.all(
+      staffMembers.map(async (s) => ({
+        id: s.id,
+        name: `${s.firstName} ${s.lastName}`,
+        email: s.email,
+        role: s.role,
+        token: await signStaffToken({
+          sub: s.id,
+          tenantId: tenant.id,
+          role: s.role,
+        }),
+      }))
+    );
+
+    const customerToken = await signCustomerToken({
+      sub: sampleCustomer.id,
+    });
+
+    const adminToken = await signStaffToken({
+      sub: superAdmin.id,
+      tenantId: null,
+      role: UserRole.SUPER_ADMIN,
+    });
 
     res.status(200).json({
       data: {
@@ -497,20 +515,7 @@ devRouter.get('/demo-session', async (_req: Request, res: Response, next: NextFu
             role: owner.role,
             token: ownerToken,
           },
-          {
-            id: staff1.id,
-            name: `${staff1.firstName} ${staff1.lastName}`,
-            email: staff1.email,
-            role: staff1.role,
-            token: staff1Token,
-          },
-          {
-            id: staff2.id,
-            name: `${staff2.firstName} ${staff2.lastName}`,
-            email: staff2.email,
-            role: staff2.role,
-            token: staff2Token,
-          },
+          ...staffUsersWithTokens,
           {
             id: sampleCustomer.id,
             name: `${sampleCustomer.firstName} ${sampleCustomer.lastName}`,

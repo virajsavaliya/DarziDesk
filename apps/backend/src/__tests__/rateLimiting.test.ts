@@ -99,7 +99,7 @@ describe('SuperAdmin login rate limiting', () => {
       slug: `platform-${Date.now().toString(36)}`,
     });
     const superAdmin = await createUser(tenant.id, {
-      role: UserRole.SUPERADMIN,
+      role: UserRole.SUPER_ADMIN,
       email: `superadmin-${Date.now().toString(36)}@platform.test`,
       password: 'RealSuperAdminSecret123!',
     });

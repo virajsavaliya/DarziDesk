@@ -1,8 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import supertest from 'supertest';
+import { GarmentType } from '@prisma/client';
 import { createApp } from '../app';
 import { testPrisma } from './setup';
-import { createTenant, createUser, createOwner, createCustomer, createMeasurementProfile, createFabricRecord } from './helpers/factories';
+import {
+  createTenant,
+  createOwner,
+  createCustomer,
+  linkCustomerToTenant,
+  createMeasurementProfile,
+  createFabricRecord,
+} from './helpers/factories';
 import { staffToken, customerToken } from './helpers/tokens';
 
 const app = createApp();
@@ -34,13 +42,14 @@ describe('Phase 12: Cross-Cutting Penetration-Style Re-Verification', () => {
   });
 
   it('1. Cross-tenant access via ID manipulation (GET /api/customers/:id)', async () => {
-    const tenantA = await createTenant('Tenant A');
-    const tenantB = await createTenant('Tenant B');
+    const tenantA = await createTenant({ name: 'Tenant A' });
+    const tenantB = await createTenant({ name: 'Tenant B' });
 
-    const ownerB = await createOwner(tenantB.id, 'ownerb@test.com');
+    const ownerB = await createOwner(tenantB.id, { email: 'ownerb@test.com' });
     const tokenB = await staffToken(ownerB);
 
-    const customerA = await createCustomer(tenantA.id, 'Alice', '+15550001111');
+    const customerA = await createCustomer({ firstName: 'Alice', phone: '+15550001111' });
+    await linkCustomerToTenant(tenantA.id, customerA.id);
 
     // Tenant B tries to access Tenant A's customer
     const response = await request
@@ -53,10 +62,11 @@ describe('Phase 12: Cross-Cutting Penetration-Style Re-Verification', () => {
   });
 
   it('2. Use a Customer JWT on a Staff/Owner endpoint (PUT /api/shop/marketplace-settings)', async () => {
-    const tenant = await createTenant('Tenant');
+    const tenant = await createTenant({ name: 'Tenant' });
     
     // Create a customer
-    const customer = await createCustomer(tenant.id, 'Alice', '+15551234567');
+    const customer = await createCustomer({ firstName: 'Alice', phone: '+15551234567' });
+    await linkCustomerToTenant(tenant.id, customer.id);
     const token = await customerToken(customer);
 
     // Customer tries to update marketplace settings (requires OWNER)
@@ -72,11 +82,12 @@ describe('Phase 12: Cross-Cutting Penetration-Style Re-Verification', () => {
   });
 
   it('3. Bypass entitlement limits via direct API calls (POST /api/orders)', async () => {
-    const tenant = await createTenant('Tenant Limits');
-    const owner = await createOwner(tenant.id, 'owner@limits.com');
+    const tenant = await createTenant({ name: 'Tenant Limits' });
+    const owner = await createOwner(tenant.id, { email: 'owner@limits.com' });
     const token = await staffToken(owner);
     
-    const customer = await createCustomer(tenant.id, 'Bob', '+15550002222');
+    const customer = await createCustomer({ firstName: 'Bob', phone: '+15550002222' });
+    await linkCustomerToTenant(tenant.id, customer.id);
 
     // Manually set the order limit to 0
     let plan = await testPrisma.subscriptionPlan.findFirst({ where: { name: 'Zero Plan' } });
@@ -119,11 +130,12 @@ describe('Phase 12: Cross-Cutting Penetration-Style Re-Verification', () => {
   });
 
   it("4. Attempt SQL injection-style payloads in search/filter (GET /api/customers?search=')", async () => {
-    const tenant = await createTenant('Tenant SQLi');
-    const owner = await createOwner(tenant.id, 'owner@sqli.com');
+    const tenant = await createTenant({ name: 'Tenant SQLi' });
+    const owner = await createOwner(tenant.id, { email: 'owner@sqli.com' });
     const token = await staffToken(owner);
     
-    await createCustomer(tenant.id, 'Charlie', '+15550003333');
+    const customer = await createCustomer({ firstName: 'Charlie', phone: '+15550003333' });
+    await linkCustomerToTenant(tenant.id, customer.id);
 
     // SQLi attempt
     const searchPayload = "'; DROP TABLE users;--";
@@ -138,15 +150,16 @@ describe('Phase 12: Cross-Cutting Penetration-Style Re-Verification', () => {
   });
 
   it('5. Access another user\'s uploaded file/PDF by guessing ID (GET /api/invoices/:id/pdf)', async () => {
-    const tenantA = await createTenant('Tenant A');
-    const tenantB = await createTenant('Tenant B');
+    const tenantA = await createTenant({ name: 'Tenant A' });
+    const tenantB = await createTenant({ name: 'Tenant B' });
 
-    const ownerB = await createOwner(tenantB.id, 'ownerb_pdf@test.com');
+    const ownerB = await createOwner(tenantB.id, { email: 'ownerb_pdf@test.com' });
     const tokenB = await staffToken(ownerB);
 
-    const customerA = await createCustomer(tenantA.id, 'Alice', '+15550001111');
-    const profileA = await createMeasurementProfile(tenantA.id, customerA.id, 'SHIRT');
-    const fabricA = await createFabricRecord(tenantA.id, 'Cotton', 10);
+    const customerA = await createCustomer({ firstName: 'Alice', phone: '+15550001111' });
+    await linkCustomerToTenant(tenantA.id, customerA.id);
+    const profileA = await createMeasurementProfile(tenantA.id, customerA.id, { garmentType: GarmentType.SHIRT });
+    const fabricA = await createFabricRecord(tenantA.id, { name: 'Cotton', availableMeters: 10 });
 
     const orderA = await testPrisma.order.create({
       data: {
@@ -156,7 +169,7 @@ describe('Phase 12: Cross-Cutting Penetration-Style Re-Verification', () => {
         fabric: { connect: { id: fabricA.id } },
         status: 'PLACED',
         estimatedDeliveryDate: new Date(),
-        garmentType: 'SHIRT', // Fix: Added missing garmentType
+        garmentType: 'SHIRT',
         metersUsed: 2,
         priceSnapshot: 100,
       }

@@ -55,7 +55,17 @@ export const DemoSessionSwitcher: React.FC<DemoSessionSwitcherProps> = ({
         >
           <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
           <span>
-            {currentUser ? `${currentUser.name} (${currentUser.role === 'SHOP_OWNER' ? 'Owner' : 'Staff'})` : 'Select User'}
+            {currentUser
+              ? `${currentUser.name} (${
+                  currentUser.role === 'SHOP_OWNER'
+                    ? 'Owner'
+                    : currentUser.role === 'SUPER_ADMIN'
+                    ? 'Admin'
+                    : currentUser.role === 'CUSTOMER'
+                    ? 'Customer'
+                    : 'Staff'
+                })`
+              : 'Select User'}
           </span>
           <svg className="w-3.5 h-3.5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -100,10 +110,20 @@ export const DemoSessionSwitcher: React.FC<DemoSessionSwitcherProps> = ({
                       className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                         u.role === 'SHOP_OWNER'
                           ? 'bg-brand/20 text-brand'
+                          : u.role === 'SUPER_ADMIN'
+                          ? 'bg-purple-500/20 text-purple-400'
+                          : u.role === 'CUSTOMER'
+                          ? 'bg-emerald-500/20 text-emerald-400'
                           : 'bg-text-muted/15 text-text-secondary'
                       }`}
                     >
-                      {u.role === 'SHOP_OWNER' ? 'OWNER' : 'STAFF'}
+                      {u.role === 'SHOP_OWNER'
+                        ? 'OWNER'
+                        : u.role === 'SUPER_ADMIN'
+                        ? 'ADMIN'
+                        : u.role === 'CUSTOMER'
+                        ? 'CLIENT'
+                        : 'STAFF'}
                     </span>
                   </button>
                 );
