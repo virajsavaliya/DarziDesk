@@ -682,10 +682,6 @@ export default function App() {
           const payload: DemoSessionData = json.data || json;
           if (payload.users?.length > 0) {
             setDemoUsers(payload.users);
-            // If no stored auth at all, use first demo persona (dev convenience only)
-            if (!currentUser) {
-              setCurrentUser(payload.users[0]);
-            }
           }
         })
         .catch((err) => console.warn('Could not fetch dev demo sessions:', err))
@@ -743,11 +739,7 @@ export default function App() {
 
   const handleLogout = () => {
     clearStoredAuth();
-    if (import.meta.env.DEV && demoUsers.length > 0) {
-      setCurrentUser(demoUsers[0]);
-    } else {
-      setCurrentUser(null);
-    }
+    setCurrentUser(null);
     navigate('/login');
   };
 
@@ -923,6 +915,16 @@ export default function App() {
           element={<AdminShell {...shellProps} currentUser={currentUser!} />}
         />
       </Route>
+
+      {/* ── Top-Level Route Aliases (Direct URL convenience) ────────────────── */}
+      <Route path="/orders" element={<Navigate to={currentUser?.role === 'CUSTOMER' ? '/portal/orders' : '/dashboard/orders'} replace />} />
+      <Route path="/customers" element={<Navigate to="/dashboard/customers" replace />} />
+      <Route path="/measurements" element={<Navigate to={currentUser?.role === 'CUSTOMER' ? '/portal/measurements' : '/dashboard/measurements'} replace />} />
+      <Route path="/fabric" element={<Navigate to="/dashboard/fabric" replace />} />
+      <Route path="/fabric-inventory" element={<Navigate to="/dashboard/fabric" replace />} />
+      <Route path="/staff" element={<Navigate to="/dashboard/staff" replace />} />
+      <Route path="/billing" element={<Navigate to={currentUser?.role === 'CUSTOMER' ? '/portal/invoices' : '/dashboard/billing'} replace />} />
+      <Route path="/reports" element={<Navigate to="/dashboard/reports" replace />} />
 
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
