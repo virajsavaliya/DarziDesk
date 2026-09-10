@@ -39,6 +39,8 @@ export interface MeasurementVersion {
 
 export interface MeasurementProfile {
   id: string;
+  tenantId?: string;
+  customerId?: string;
   name: string;
   garmentType: GarmentType;
   notes?: string | null;
