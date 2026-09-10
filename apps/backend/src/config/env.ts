@@ -70,7 +70,7 @@ const envSchema = z.object({
     .min(64, 'JWT_SECRET must be at least 64 characters (256-bit minimum)'),
   JWT_ACCESS_EXPIRES_IN: z
     .string()
-    .default('15m'),
+    .default('7d'),
 
   // Password reset
   RESET_TOKEN_EXPIRES_MINUTES: z

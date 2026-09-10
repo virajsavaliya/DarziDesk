@@ -41,7 +41,7 @@ import { AppShell } from './components/layout/AppShell';
 
 // ── Landing Page ──────────────────────────────────────────────────────────────
 import { LandingPage } from './components/landing/LandingPage';
-import { LoginPage, getStoredAuth, setStoredAuth, clearStoredAuth } from './components/landing/LoginPage';
+import { LoginPage, getStoredAuth, setStoredAuth, clearStoredAuth, decodeJwtPayload } from './components/landing/LoginPage';
 
 // ── Customer Portal Views ───────────────────────────────────────────────────
 import { CustomerOrdersView } from './components/portal/CustomerOrdersView';
@@ -79,6 +79,17 @@ import { SuperAdminPlansView } from './components/admin/SuperAdminPlansView';
 // Auth helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Check whether a JWT has passed its expiration timestamp */
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = decodeJwtPayload(token);
+    if (!payload || typeof payload.exp !== 'number') return false;
+    return Date.now() >= payload.exp * 1000;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Build a DemoUser from stored auth synchronously.
  * Called in useState initializer — no async, no useEffect needed.
@@ -86,6 +97,10 @@ import { SuperAdminPlansView } from './components/admin/SuperAdminPlansView';
 function buildUserFromStorage(): DemoUser | null {
   const stored = getStoredAuth();
   if (!stored?.token) return null;
+  if (isTokenExpired(stored.token)) {
+    clearStoredAuth();
+    return null;
+  }
   return {
     id: stored.userId,
     name: stored.name || 'User',
@@ -99,9 +114,15 @@ function buildUserFromStorage(): DemoUser | null {
  * Validate stored token against the server.
  * Uses GET /api/users/me (exists for STAFF / SHOP_OWNER / SUPER_ADMIN roles).
  * For CUSTOMER role, uses GET /api/portal/me (customer self-profile).
- * Returns the enriched user on success, null on 401/403/network error.
+ * Returns the enriched user on success.
+ * ONLY returns null on explicit 401/403 credentials rejection or expired token.
  */
 async function validateToken(user: DemoUser): Promise<DemoUser | null> {
+  // 1. Immediate client-side expiration check
+  if (isTokenExpired(user.token)) {
+    return null;
+  }
+
   try {
     // Choose appropriate validation endpoint by role
     const endpoint =
@@ -111,7 +132,15 @@ async function validateToken(user: DemoUser): Promise<DemoUser | null> {
       headers: { Authorization: `Bearer ${user.token}` },
     });
 
-    if (!res.ok) return null; // 401 expired, 403 wrong role, etc.
+    // Explicit 401/403 means credentials rejected by server
+    if (res.status === 401 || res.status === 403) {
+      return null;
+    }
+
+    // For 429 (rate-limited) or 500 (server temporary error), do NOT log user out
+    if (!res.ok) {
+      return user;
+    }
 
     const json = await res.json();
     const serverUser = json.data;
@@ -127,7 +156,7 @@ async function validateToken(user: DemoUser): Promise<DemoUser | null> {
       email: serverUser.email || user.email,
     };
   } catch {
-    // Network error — allow offline-ish use: trust the stored token
+    // Network error — allow offline/slow connections: trust the stored token
     return user;
   }
 }
@@ -703,15 +732,13 @@ export default function App() {
             u.id === stored.userId ||
             (stored.email && u.email.toLowerCase() === stored.email.toLowerCase()),
         );
-        setCurrentUser(
-          match ?? {
-            id: stored.userId,
-            name: stored.name || 'User',
-            email: stored.email || '',
-            role: stored.role as DemoUser['role'],
-            token: stored.token,
-          },
-        );
+        setCurrentUser({
+          id: stored.userId,
+          name: stored.name || match?.name || 'User',
+          email: stored.email || match?.email || '',
+          role: (stored.role || match?.role) as DemoUser['role'],
+          token: stored.token,
+        });
       } else {
         setCurrentUser(null);
       }

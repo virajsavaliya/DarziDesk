@@ -66,7 +66,7 @@ export function clearStoredAuth(): void {
  * Does NOT validate the signature — the server does that on every request.
  * Returns null if the token is malformed.
  */
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
+export function decodeJwtPayload(token: string): Record<string, unknown> | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;

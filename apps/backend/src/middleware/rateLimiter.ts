@@ -30,13 +30,16 @@ export function resetRateLimiters(): void {
   void passwordResetStore.resetAll();
 }
 
-/** General API protection — 100 requests per 15 minutes per IP. */
+const isDevOrTest = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' || !process.env.NODE_ENV;
+
+/** General API protection — 10,000 req/15min in dev/test, 500 in prod. */
 export const apiLimiter = rateLimit({
   store: apiStore,
   windowMs: 15 * 60 * 1000,
-  limit: 100,
+  limit: isDevOrTest ? 10000 : 500,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
+  skip: (req) => isDevOrTest && (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1'),
   message: {
     error: {
       message: 'Too many requests — please slow down',
