@@ -64,6 +64,7 @@ import { OwnerOrdersView } from './components/dashboard/OwnerOrdersView';
 import { OwnerFabricView } from './components/dashboard/OwnerFabricView';
 import { OwnerStaffView } from './components/dashboard/OwnerStaffView';
 import { OwnerInvoicesView } from './components/invoices/OwnerInvoicesView';
+import { ProductsAndServicesView } from './components/dashboard/ProductsAndServicesView';
 import { PlaceholderView } from './components/dashboard/PlaceholderView';
 
 // ── Marketplace & Administration Views ───────────────────────────────────────
@@ -871,7 +872,16 @@ export default function App() {
               )
             }
           />
-          <Route path="products" element={<PlaceholderView viewId="products" />} />
+          <Route
+            path="products"
+            element={
+              currentUser?.role === 'SHOP_OWNER' ? (
+                <ProductsAndServicesView authToken={currentUser.token} />
+              ) : (
+                <Navigate to="/dashboard/tasks" replace />
+              )
+            }
+          />
           <Route path="reports" element={<PlaceholderView viewId="reports" />} />
           <Route path="settings" element={<PlaceholderView viewId="settings" />} />
           <Route

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users2, Briefcase } from 'lucide-react';
+import { Users2, Briefcase, UserPlus } from 'lucide-react';
 import type { StaffMember } from '../../types/dashboard';
 import { SectionCard } from '../common/SectionCard';
 import { EmptyState } from '../common/EmptyState';
+import { AddStaffDrawer } from './AddStaffDrawer';
 
 interface OwnerStaffViewProps {
   authToken: string;
@@ -12,6 +13,7 @@ export const OwnerStaffView: React.FC<OwnerStaffViewProps> = ({ authToken }) => 
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
 
   const fetchStaff = useCallback(async () => {
     setLoading(true);
@@ -44,10 +46,22 @@ export const OwnerStaffView: React.FC<OwnerStaffViewProps> = ({ authToken }) => 
     <div className="space-y-4">
       <SectionCard
         title={`Staff Members ${filtered.length > 0 ? `(${filtered.length})` : ''}`}
+        action={
+          <button
+            type="button"
+            id="btn-add-staff"
+            onClick={() => setIsAddStaffOpen(true)}
+            className="min-h-[38px] px-3.5 py-1.5 bg-brand text-white font-bold text-xs rounded-xl hover:bg-brand-dark active:scale-[0.98] transition-all flex items-center gap-1.5 shadow-sm"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>Add Staff Member</span>
+          </button>
+        }
       >
         {/* Search */}
         <div className="mb-4">
           <input
+            id="search-staff-input"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search staff by name or email…"
@@ -105,6 +119,14 @@ export const OwnerStaffView: React.FC<OwnerStaffViewProps> = ({ authToken }) => 
           </div>
         )}
       </SectionCard>
+
+      {/* ── Add Staff Drawer ───────────────────────────────── */}
+      <AddStaffDrawer
+        isOpen={isAddStaffOpen}
+        onClose={() => setIsAddStaffOpen(false)}
+        authToken={authToken}
+        onStaffAdded={fetchStaff}
+      />
     </div>
   );
 };
