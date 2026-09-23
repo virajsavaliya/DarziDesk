@@ -204,14 +204,26 @@ export async function getStaffOrderById(
           },
         },
         invoices: {
-          select: {
-            id: true,
-            invoiceNumber: true,
-            status: true,
-            totalAmount: true,
-            advancePaid: true,
-            balanceDue: true,
-            createdAt: true,
+          include: {
+            customer: {
+              select: { id: true, firstName: true, lastName: true, phone: true, email: true },
+            },
+            order: {
+              select: {
+                id: true,
+                garmentType: true,
+                metersUsed: true,
+                priceSnapshot: true,
+                status: true,
+                fabric: { select: { id: true, name: true, color: true, type: true } },
+              },
+            },
+            payments: {
+              orderBy: { recordedAt: 'desc' },
+              include: {
+                recordedBy: { select: { id: true, firstName: true, lastName: true } },
+              },
+            },
           },
           orderBy: { createdAt: 'desc' },
         },

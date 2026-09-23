@@ -21,6 +21,7 @@ import PDFDocument from 'pdfkit';
 import { notificationService } from '../notifications/notification.service';
 import { withTenantContext } from '../../lib/prisma';
 import { ConflictError, NotFoundError, ValidationError } from '../../lib/errors';
+import { emitOutboxEvent } from '../outbox/outbox.service';
 import type {
   GenerateInvoiceInput,
   ListInvoicesQuery,
@@ -162,6 +163,7 @@ export async function generateInvoice(
             metersUsed: true,
             priceSnapshot: true,
             status: true,
+            fabric: { select: { id: true, name: true, color: true, type: true } },
           },
         },
         payments: true,
@@ -181,6 +183,23 @@ export async function generateInvoice(
         },
       });
     }
+
+    // Emit outbox domain event
+    await emitOutboxEvent(tx, {
+      tenantId,
+      aggregateType: 'INVOICE',
+      aggregateId: invoice.id,
+      eventType: 'INVOICE_GENERATED',
+      payload: {
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        orderId: invoice.orderId,
+        customerId: invoice.customerId,
+        totalAmount: invoice.totalAmount.toNumber(),
+        advancePaid: invoice.advancePaid.toNumber(),
+        balanceDue: invoice.balanceDue.toNumber(),
+      },
+    });
 
     return invoice;
   });
@@ -303,6 +322,22 @@ export async function recordPayment(
       },
     });
 
+    // Emit outbox event
+    await emitOutboxEvent(tx, {
+      tenantId,
+      aggregateType: 'INVOICE',
+      aggregateId: invoiceId,
+      eventType: 'INVOICE_PAYMENT_RECORDED',
+      payload: {
+        invoiceId,
+        paymentId: payment.id,
+        amount: payment.amount.toNumber(),
+        paymentMethod: payment.paymentMethod,
+        remainingBalance: updatedInvoice.balanceDue.toNumber(),
+        status: updatedInvoice.status,
+      },
+    });
+
     return { invoice: updatedInvoice, payment };
   });
 
@@ -361,10 +396,23 @@ export async function listInvoices(tenantId: string, query: ListInvoicesQuery) {
         take: query.limit,
         include: {
           customer: {
-            select: { id: true, firstName: true, lastName: true, phone: true },
+            select: { id: true, firstName: true, lastName: true, phone: true, email: true },
           },
           order: {
-            select: { id: true, garmentType: true, status: true },
+            select: {
+              id: true,
+              garmentType: true,
+              metersUsed: true,
+              priceSnapshot: true,
+              status: true,
+              fabric: { select: { id: true, name: true, color: true, type: true } },
+            },
+          },
+          payments: {
+            orderBy: { recordedAt: 'desc' },
+            include: {
+              recordedBy: { select: { id: true, firstName: true, lastName: true } },
+            },
           },
         },
       }),
@@ -406,6 +454,9 @@ export async function getInvoiceById(tenantId: string, invoiceId: string) {
           include: {
             recordedBy: { select: { id: true, firstName: true, lastName: true } },
           },
+        },
+        tenant: {
+          select: { id: true, name: true, city: true, address: true, phone: true },
         },
       },
     });
@@ -495,10 +546,27 @@ export async function generateInvoicePdfBuffer(
     doc.on('error', (err) => reject(err));
 
     // Header
+    const tenant = (invoice as any).tenant;
+    if (tenant?.name) {
+      doc.fontSize(16).fillColor('#0F172A').text(tenant.name, 50, 50);
+      let tenantY = 70;
+      if (tenant.address) {
+        doc.fontSize(9).fillColor('#64748B').text(tenant.address, 50, tenantY);
+        tenantY += 13;
+      }
+      if (tenant.city) {
+        doc.fontSize(9).fillColor('#64748B').text(tenant.city, 50, tenantY);
+        tenantY += 13;
+      }
+      if (tenant.phone) {
+        doc.fontSize(9).fillColor('#64748B').text(`Phone: ${tenant.phone}`, 50, tenantY);
+      }
+    }
+
     doc
       .fontSize(22)
       .fillColor('#1E293B')
-      .text('DARZIDESK INVOICE', { align: 'right' });
+      .text('DARZIDESK INVOICE', 50, 50, { align: 'right' });
     doc
       .fontSize(10)
       .fillColor('#64748B')
@@ -508,7 +576,7 @@ export async function generateInvoicePdfBuffer(
         align: 'right',
       });
     doc.text(`Status: ${invoice.status}`, { align: 'right' });
-    doc.moveDown(2);
+    doc.moveDown(3);
 
     // Bill To
     doc.fontSize(12).fillColor('#0F172A').text('BILL TO:');

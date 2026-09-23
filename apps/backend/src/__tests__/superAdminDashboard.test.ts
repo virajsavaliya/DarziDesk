@@ -381,16 +381,17 @@ describe('Phase 11: Super Admin Platform Dashboard & Entitlements', () => {
 
     expect(suspendRes.status).toBe(200);
 
-    // Verify tenant in db is inactive
+    // Verify tenant in db is inactive and lifecycleState is SUSPENDED
     const updatedTenant = await testPrisma.tenant.findUnique({ where: { id: shopA.id } });
     expect(updatedTenant?.isActive).toBe(false);
+    expect(updatedTenant?.lifecycleState).toBe('SUSPENDED');
 
-    // Verify subscription status in db is explicitly CANCELLED
+    // Per mandatory architectural correction 5: tenant suspension must not automatically mutate billing subscription status
     const suspendedSub = await testPrisma.tenantSubscription.findFirst({
       where: { tenantId: shopA.id },
       orderBy: { createdAt: 'desc' },
     });
-    expect(suspendedSub?.status).toBe(SubscriptionStatus.CANCELLED);
+    expect(suspendedSub?.status).toBe(SubscriptionStatus.ACTIVE);
 
     // 2. Staff / Owner login is REJECTED
     const loginRes = await supertest(app)

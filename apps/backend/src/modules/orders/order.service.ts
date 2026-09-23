@@ -34,6 +34,7 @@ import {
   reserveStock,
 } from '../fabrics/fabric.service';
 import { checkEntitlement } from '../subscriptions/entitlement.service';
+import { emitOutboxEvent } from '../outbox/outbox.service';
 import type {
   AssignOrderInput,
   CreateOrderInput,
@@ -136,6 +137,22 @@ export async function createOrder(
       tx,
     );
 
+    // Verify assignedStaffId if provided
+    let assignedStaffId: string | null = null;
+    if (input.assignedStaffId) {
+      const staffMember = await tx.user.findFirst({
+        where: {
+          id: input.assignedStaffId,
+          tenantId,
+          isActive: true,
+        },
+      });
+      if (!staffMember) {
+        throw new NotFoundError('Assigned staff member not found in this shop');
+      }
+      assignedStaffId = staffMember.id;
+    }
+
     // 6. Create Order record (status = PLACED)
     const order = await tx.order.create({
       data: {
@@ -143,6 +160,7 @@ export async function createOrder(
         customerId: input.customerId,
         measurementProfileId: input.measurementProfileId,
         fabricId: input.fabricId,
+        assignedStaffId,
         garmentType: input.garmentType,
         metersUsed,
         status: OrderStatus.PLACED,
@@ -178,6 +196,15 @@ export async function createOrder(
             pricePerMeter: true,
           },
         },
+        assignedStaff: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
       },
     });
 
@@ -199,19 +226,37 @@ export async function createOrder(
       },
     });
 
+    // 9. Emit transactional outbox event
+    await emitOutboxEvent(tx, {
+      tenantId,
+      aggregateType: 'ORDER',
+      aggregateId: order.id,
+      eventType: 'ORDER_CREATED',
+      payload: {
+        orderId: order.id,
+        customerId: order.customerId,
+        fabricId: order.fabricId,
+        garmentType: order.garmentType,
+      },
+    });
+
     return order;
   });
 
-  // Dispatch fully decoupled notification AFTER transaction commits
-  notificationService.sendNotification({
+  // Automated customer notifications (WhatsApp + SMS) AFTER transaction commits
+  notificationService.sendCustomerOrderAlert({
     tenantId,
     customerId: order.customerId,
     orderId: order.id,
-    channel: NotificationChannel.SMS,
-    templateName: 'ORDER_PLACED',
-    data: { garmentType: order.garmentType, estimatedDeliveryDate: order.estimatedDeliveryDate },
-    recipient: order.customer.phone,
-  }).catch(e => console.error('Notification dispatch error:', e));
+    recipientPhone: order.customer.phone,
+    templateName: 'ORDER_CONFIRMED',
+    data: {
+      orderNumber: order.id.slice(0, 8).toUpperCase(),
+      customerName: `${order.customer.firstName} ${order.customer.lastName}`.trim(),
+      garmentType: order.garmentType,
+      deliveryDate: order.estimatedDeliveryDate,
+    },
+  }).catch(e => console.error('Automated order confirmation notification error:', e));
 
   return order;
 }
@@ -317,10 +362,20 @@ export async function transitionOrderStatus(
       // Do NOT release fabric back. Order is marked CANCELLED (garment abandoned/damaged).
     }
 
-    // Update order status
+    // Optimistic Concurrency Check: If caller provided expectedVersion, ensure it matches
+    if (input.expectedVersion !== undefined && order.version !== input.expectedVersion) {
+      throw new ConflictError(
+        `Order was modified by another user (expected version ${input.expectedVersion}, found ${order.version}). Please refresh and try again.`,
+      );
+    }
+
+    // Update order status and increment version
     const updatedOrder = await tx.order.update({
       where: { id: order.id },
-      data: { status: targetStatus },
+      data: {
+        status: targetStatus,
+        version: { increment: 1 },
+      },
       include: {
         customer: {
           select: {
@@ -355,21 +410,74 @@ export async function transitionOrderStatus(
       },
     });
 
+    // Emit transactional outbox event
+    await emitOutboxEvent(tx, {
+      tenantId,
+      aggregateType: 'ORDER',
+      aggregateId: order.id,
+      eventType: 'ORDER_STATUS_TRANSITIONED',
+      payload: {
+        orderId: order.id,
+        fromStatus: currentStatus,
+        toStatus: targetStatus,
+        changedById: staffUserId,
+        previousVersion: order.version,
+        newVersion: updatedOrder.version,
+      },
+    });
+
     return updatedOrder;
   });
 
-  // Dispatch fully decoupled notification AFTER transaction commits
-  if (input.toStatus === OrderStatus.READY) {
-    notificationService.sendNotification({
-      tenantId,
-      customerId: result.customerId,
-      orderId: result.id,
-      channel: NotificationChannel.SMS,
-      templateName: 'ORDER_READY',
-      data: { garmentType: result.garmentType },
-      recipient: result.customer.phone,
-    }).catch(e => console.error('Notification dispatch error:', e));
-  } else if (input.toStatus === OrderStatus.CUTTING) {
+  // Automated customer notifications for ALL stage updates (WhatsApp & SMS)
+  const statusTemplateMap: Record<OrderStatus, string> = {
+    [OrderStatus.PLACED]: 'ORDER_CONFIRMED',
+    [OrderStatus.MEASUREMENT_CONFIRMED]: 'MEASUREMENT_CONFIRMED',
+    [OrderStatus.CUTTING]: 'ORDER_CUTTING',
+    [OrderStatus.STITCHING]: 'ORDER_STITCHING',
+    [OrderStatus.QUALITY_CHECK]: 'ORDER_QUALITY_CHECK',
+    [OrderStatus.READY]: 'READY_FOR_PICKUP',
+    [OrderStatus.DELIVERED]: 'ORDER_DELIVERED',
+    [OrderStatus.CANCELLED]: 'ORDER_CANCELLED',
+  };
+
+  const templateName = statusTemplateMap[input.toStatus];
+  if (templateName && result.customer?.phone) {
+    (async () => {
+      try {
+        let balanceDue: string | undefined = undefined;
+        if (input.toStatus === OrderStatus.READY) {
+          const { prisma } = await import('../../lib/prisma');
+          const invoice = await prisma.invoice.findFirst({
+            where: { orderId: result.id, tenantId },
+            select: { balanceDue: true },
+          });
+          balanceDue = invoice?.balanceDue != null ? invoice.balanceDue.toString() : result.priceSnapshot?.toString();
+        }
+
+        await notificationService.sendCustomerOrderAlert({
+          tenantId,
+          customerId: result.customerId,
+          orderId: result.id,
+          recipientPhone: result.customer.phone,
+          templateName,
+          data: {
+            orderNumber: result.id.slice(0, 8).toUpperCase(),
+            customerName: `${result.customer.firstName} ${result.customer.lastName}`.trim(),
+            garmentType: result.garmentType,
+            fabricName: result.fabric?.name,
+            balanceDue,
+            status: input.toStatus,
+            note: input.note,
+          },
+        });
+      } catch (err) {
+        console.error(`Automated notification for ${input.toStatus} failed:`, err);
+      }
+    })();
+  }
+
+  if (input.toStatus === OrderStatus.CUTTING && result.fabric) {
     if (result.fabric.availableMeters.lessThanOrEqualTo(result.fabric.lowStockThreshold)) {
       // Find Shop Owner for email
       import('../../lib/prisma').then(({ prisma }) => {
@@ -515,6 +623,30 @@ export async function getOrderById(tenantId: string, orderId: string): Promise<O
               },
             },
           },
+        },
+        invoices: {
+          include: {
+            customer: {
+              select: { id: true, firstName: true, lastName: true, phone: true, email: true },
+            },
+            order: {
+              select: {
+                id: true,
+                garmentType: true,
+                metersUsed: true,
+                priceSnapshot: true,
+                status: true,
+                fabric: { select: { id: true, name: true, color: true, type: true } },
+              },
+            },
+            payments: {
+              orderBy: { recordedAt: 'desc' },
+              include: {
+                recordedBy: { select: { id: true, firstName: true, lastName: true } },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
         },
       },
     });

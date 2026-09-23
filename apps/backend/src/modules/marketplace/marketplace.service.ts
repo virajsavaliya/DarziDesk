@@ -214,7 +214,10 @@ export async function listPublicShops(query: MarketplaceQueryInput) {
 export async function getPublicShopDetail(tenantId: string) {
   const shop = await prisma.tenant.findFirst({
     where: {
-      id: tenantId,
+      OR: [
+        { id: tenantId },
+        { slug: tenantId },
+      ],
       isListedOnMarketplace: true,
       listingStatus: ListingStatus.APPROVED,
       isActive: true,
@@ -508,3 +511,89 @@ export async function resolveFlaggedReview(reviewId: string, action: 'DISMISS' |
     return { message: 'Review removed permanently' };
   }
 }
+
+// ---------------------------------------------------------------------------
+// 5. Geolocation / IP-Based Detection
+// ---------------------------------------------------------------------------
+
+export interface DetectedLocation {
+  city: string;
+  region: string;
+  country: string;
+  latitude: number;
+  longitude: number;
+  ip: string;
+  isFallback?: boolean;
+}
+
+const DEFAULT_FALLBACK_LOCATION: DetectedLocation = {
+  city: 'Surat',
+  region: 'Gujarat',
+  country: 'India',
+  latitude: 21.1702,
+  longitude: 72.8311,
+  ip: '127.0.0.1',
+  isFallback: true,
+};
+
+function isPrivateOrLocalIp(ip: string): boolean {
+  if (!ip) return true;
+  const cleanIp = ip.replace(/^::ffff:/, '').trim();
+  if (
+    cleanIp === '127.0.0.1' ||
+    cleanIp === '::1' ||
+    cleanIp === 'localhost' ||
+    cleanIp.startsWith('10.') ||
+    cleanIp.startsWith('192.168.') ||
+    cleanIp.startsWith('169.254.')
+  ) {
+    return true;
+  }
+  if (cleanIp.startsWith('172.')) {
+    const parts = cleanIp.split('.');
+    const second = parseInt(parts[1], 10);
+    if (second >= 16 && second <= 31) return true;
+  }
+  return false;
+}
+
+export async function detectIpLocation(clientIp: string): Promise<DetectedLocation> {
+  const isLocal = isPrivateOrLocalIp(clientIp);
+  const targetUrl = isLocal
+    ? 'https://ipwho.is/'
+    : `https://ipwho.is/${encodeURIComponent(clientIp.replace(/^::ffff:/, '').trim())}`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+    const res = await fetch(targetUrl, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data: any = await res.json();
+      if (data && data.success !== false && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+        return {
+          city: data.city || 'Surat',
+          region: data.region || 'Gujarat',
+          country: data.country || 'India',
+          latitude: Number(data.latitude),
+          longitude: Number(data.longitude),
+          ip: data.ip || clientIp,
+          isFallback: false,
+        };
+      }
+    }
+  } catch (_err) {
+    // Network or timeout failure - fallback safely
+  }
+
+  return {
+    ...DEFAULT_FALLBACK_LOCATION,
+    ip: clientIp || DEFAULT_FALLBACK_LOCATION.ip,
+  };
+}
+

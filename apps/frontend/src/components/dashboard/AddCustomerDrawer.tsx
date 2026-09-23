@@ -35,10 +35,10 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
     setSuccess(false);
   };
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     resetForm();
     onClose();
-  };
+  }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

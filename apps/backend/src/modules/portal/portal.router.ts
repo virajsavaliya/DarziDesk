@@ -22,6 +22,7 @@ import {
   getCustomerMeasurementProfiles,
   createCustomerMeasurementProfile,
 } from './portal.service';
+import { prisma } from '../../lib/prisma';
 
 export const portalRouter = Router();
 
@@ -198,3 +199,39 @@ portalRouter.post(
     }
   },
 );
+
+// ---------------------------------------------------------------------------
+// 8. GET /api/portal/notifications — Customer's notifications
+// ---------------------------------------------------------------------------
+portalRouter.get(
+  '/notifications',
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const customerId = res.locals.auth!.sub;
+      const notifications = await prisma.notificationLog.findMany({
+        where: { customerId },
+        orderBy: { createdAt: 'desc' },
+        take: 30,
+        select: {
+          id: true,
+          channel: true,
+          templateName: true,
+          status: true,
+          payload: true,
+          createdAt: true,
+          orderId: true,
+          order: {
+            select: {
+              garmentType: true,
+              status: true,
+            },
+          },
+        },
+      });
+      res.status(200).json({ data: notifications });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+

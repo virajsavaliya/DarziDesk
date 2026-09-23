@@ -358,22 +358,29 @@ describe('Phase 10: Marketplace & Discovery API', () => {
     const pendingIds = pendingRes.body.data.map((s: any) => s.id);
     expect(pendingIds).toContain(shopPending.id);
 
-    // 3. SuperAdmin approves shopPending
+    // 3. SuperAdmin approves shopPending (supports /shops/:tenantId/approve)
     const approveRes = await supertest(app)
-      .post(`/api/admin/marketplace/${shopPending.id}/approve`)
+      .post(`/api/admin/marketplace/shops/${shopPending.id}/approve`)
       .set('Authorization', `Bearer ${tokenSuperAdmin}`);
 
     expect(approveRes.status).toBe(200);
     expect(approveRes.body.data.listingStatus).toBe(ListingStatus.APPROVED);
+
+    // 3b. Verify backwards-compatibility for /api/admin/marketplace/:tenantId/approve route alias
+    const approveAliasRes = await supertest(app)
+      .post(`/api/admin/marketplace/${shopPending.id}/approve`)
+      .set('Authorization', `Bearer ${tokenSuperAdmin}`);
+    expect(approveAliasRes.status).toBe(200);
+    expect(approveAliasRes.body.data.listingStatus).toBe(ListingStatus.APPROVED);
 
     // 4. Shop now appears on public marketplace
     const publicRes = await supertest(app).get('/api/marketplace/shops');
     const publicIds = publicRes.body.data.map((s: any) => s.id);
     expect(publicIds).toContain(shopPending.id);
 
-    // 5. SuperAdmin rejects shop with a reason
+    // 5. SuperAdmin rejects shop with a reason (supports /shops/:tenantId/reject)
     const rejectRes = await supertest(app)
-      .post(`/api/admin/marketplace/${shopPending.id}/reject`)
+      .post(`/api/admin/marketplace/shops/${shopPending.id}/reject`)
       .set('Authorization', `Bearer ${tokenSuperAdmin}`)
       .send({ reason: 'Incomplete portfolio photos' });
 

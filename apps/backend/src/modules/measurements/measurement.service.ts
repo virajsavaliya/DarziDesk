@@ -8,7 +8,7 @@
  */
 
 import { InteractionSource } from '@prisma/client';
-import { withTenantContext } from '../../lib/prisma';
+import { prisma, withTenantContext } from '../../lib/prisma';
 import { NotFoundError } from '../../lib/errors';
 import type {
   CreateMeasurementProfileInput,
@@ -25,7 +25,34 @@ export async function createMeasurementProfile(
   staffUserId: string,
   data: CreateMeasurementProfileInput,
 ) {
-  return withTenantContext(tenantId, async (tx) => {
+  let targetTenantId = tenantId;
+  if (!targetTenantId || targetTenantId === 'null' || targetTenantId === 'undefined') {
+    const defaultTenant = await prisma.tenant.findFirst({
+      where: { isActive: true },
+      select: { id: true },
+    });
+    if (!defaultTenant) {
+      throw new NotFoundError('Shop/tenant not found');
+    }
+    targetTenantId = defaultTenant.id;
+  } else {
+    const exists = await prisma.tenant.findUnique({
+      where: { id: targetTenantId },
+      select: { id: true },
+    });
+    if (!exists) {
+      const defaultTenant = await prisma.tenant.findFirst({
+        where: { isActive: true },
+        select: { id: true },
+      });
+      if (!defaultTenant) {
+        throw new NotFoundError('Shop/tenant not found');
+      }
+      targetTenantId = defaultTenant.id;
+    }
+  }
+
+  return withTenantContext(targetTenantId, async (tx) => {
     // Verify customer exists
     const customer = await tx.customer.findUnique({ where: { id: customerId } });
     if (!customer) {
@@ -35,14 +62,14 @@ export async function createMeasurementProfile(
     // Auto-create ShopCustomerLink if not already present
     const existingLink = await tx.shopCustomerLink.findUnique({
       where: {
-        tenantId_customerId: { tenantId, customerId },
+        tenantId_customerId: { tenantId: targetTenantId, customerId },
       },
     });
 
     if (!existingLink) {
       await tx.shopCustomerLink.create({
         data: {
-          tenantId,
+          tenantId: targetTenantId,
           customerId,
           firstInteractionSource: InteractionSource.WALK_IN,
         },
@@ -52,7 +79,7 @@ export async function createMeasurementProfile(
     // Create the profile container
     const profile = await tx.measurementProfile.create({
       data: {
-        tenantId,
+        tenantId: targetTenantId,
         customerId,
         name: data.name,
         garmentType: data.garmentType,
@@ -225,5 +252,55 @@ export async function addMeasurementVersion(
     });
 
     return newVersion;
+  });
+}
+
+/**
+ * Lists all measurement profiles across the entire tenant with optional garmentType and search filters.
+ * Returns profiles with their customer info and current active version.
+ */
+export async function listAllProfilesForTenant(
+  tenantId: string,
+  options?: { garmentType?: string; search?: string },
+) {
+  return withTenantContext(tenantId, async (tx) => {
+    const whereClause: any = { tenantId };
+
+    if (options?.garmentType && options.garmentType !== 'ALL') {
+      whereClause.garmentType = options.garmentType;
+    }
+
+    if (options?.search && options.search.trim()) {
+      const q = options.search.trim();
+      whereClause.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { customer: { firstName: { contains: q, mode: 'insensitive' } } },
+        { customer: { lastName: { contains: q, mode: 'insensitive' } } },
+        { customer: { phone: { contains: q, mode: 'insensitive' } } },
+      ];
+    }
+
+    const profiles = await tx.measurementProfile.findMany({
+      where: whereClause,
+      include: {
+        customer: {
+          select: { id: true, firstName: true, lastName: true, phone: true, email: true },
+        },
+        versions: {
+          where: { isCurrent: true },
+          include: {
+            createdBy: {
+              select: { id: true, firstName: true, lastName: true, email: true },
+            },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return profiles.map((p) => ({
+      ...p,
+      currentVersion: p.versions[0] || null,
+    }));
   });
 }

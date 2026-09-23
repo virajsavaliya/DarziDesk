@@ -1,0 +1,156 @@
+[
+  {
+    "id": 1,
+    "category": "SHOP OWNER",
+    "feature": "Fabric Inventory (Add Fabric & Add Stock)",
+    "status": "WORKING",
+    "details": "Created fabric \"Audit Fabric 4692\" (POST /api/fabrics -> 201), added 10m stock (POST /api/fabrics/:id/stock/add -> 200). Available stock refreshed from 30.00m to 40.00m without page reload."
+  },
+  {
+    "id": 2,
+    "category": "SHOP OWNER",
+    "feature": "Staff: Add Staff Member",
+    "status": "WORKING",
+    "details": "POST /api/users returned 403; UI properly surfaced backend entitlement error banner: \"Staff limit reached (10/10) for your Pro plan\"."
+  },
+  {
+    "id": 3,
+    "category": "SHOP OWNER",
+    "feature": "Products & Services (pricing rules & tax rate)",
+    "status": "WORKING",
+    "details": "Replaced placeholder with real management page. Successfully updated tax rate to 8.50% (PUT /api/invoices/config/tax -> 200) and PANT charge to ₹950.00 (PUT /api/invoices/config/pricing -> 200). Live alerts confirmed without reload."
+  },
+  {
+    "id": 4,
+    "category": "SHOP OWNER",
+    "feature": "Billing & Invoices page (list, payment, download PDF)",
+    "status": "WORKING",
+    "details": "Invoice list table renders with status filters, search, and metric cards (GET /api/invoices). Clicking an invoice opens InvoiceDetailDrawer with \"Record Payment\" (POST /api/invoices/:id/payments) and \"Download PDF\" (GET /api/invoices/:id/pdf) fully wired."
+  },
+  {
+    "id": 5,
+    "category": "SHOP OWNER",
+    "feature": "\"New Order\" quick action from dashboard",
+    "status": "BROKEN",
+    "details": "Clicking \"New Order\" only navigates to /dashboard/orders (the orders list). There is NO order creation drawer or modal on /dashboard/orders or /dashboard/home. Shop owners/staff currently have no UI to create new orders for in-store customers (POST /api/orders is never called from frontend)."
+  },
+  {
+    "id": 6,
+    "category": "SHOP OWNER",
+    "feature": "\"Create Invoice\" quick action from dashboard",
+    "status": "MISSING",
+    "details": "There is no \"Create Invoice\" button on the dashboard quick actions (only New Order, Add Customer, Record Payment, and View Reports). Invoices can only be generated from inside an existing Order Detail view (/api/invoices/generate); there is no standalone invoice creator."
+  },
+  {
+    "id": 7,
+    "category": "SHOP OWNER",
+    "feature": "Notification preferences (Settings page toggle)",
+    "status": "MISSING",
+    "details": "/dashboard/settings renders a PlaceholderView (\"Coming soon\"). There are NO toggles for SMS, Email, or WhatsApp, and PUT /api/notifications/config is never called from any UI."
+  },
+  {
+    "id": 8,
+    "category": "SHOP OWNER",
+    "feature": "Shop profile settings (name/address/logo)",
+    "status": "MISSING",
+    "details": "Shop name, physical address, and logo cannot be edited anywhere in the app. /dashboard/settings is a placeholder, and /dashboard/marketplace-settings only exposes city, coordinates, tags, hours, and image URLs."
+  },
+  {
+    "id": 9,
+    "category": "SHOP OWNER",
+    "feature": "Marketplace settings (toggle listing, edit storefront)",
+    "status": "WORKING",
+    "details": "Working end-to-end. Toggled listing on/off, edited city, tags, and hours, and saved to backend (PUT /api/shop/marketplace-settings -> 200). Success banner displayed live."
+  },
+  {
+    "id": 10,
+    "category": "SHOP OWNER",
+    "feature": "Reports & Analytics",
+    "status": "NOT APPLICABLE",
+    "details": "Confirmed correctly showing \"Coming soon\" placeholder (<PlaceholderView viewId=\"reports\" />). Deferred to separate upcoming analytics mission per mission specifications."
+  },
+  {
+    "id": 11,
+    "category": "STAFF DASHBOARD",
+    "feature": "Add Customer (walk-in quick-create)",
+    "status": "WORKING",
+    "details": "Working end-to-end. Created walk-in customer \"Kiran Patel 4692\" (POST /api/customers -> 201). Immediately inserted and auto-selected in directory list without reload."
+  },
+  {
+    "id": 12,
+    "category": "STAFF DASHBOARD",
+    "feature": "Add Measurement Profile (core paper-book replacement)",
+    "status": "WORKING",
+    "details": "Working end-to-end. Saved \"Formal Trouser Fit 4692\" under customer record (POST /api/customers/:id/measurements -> 201). Immutable version 1 created; measurement card with dimensions (Waist 34.5in, Hip 40in, Inseam 31in) and tailor notes rendered immediately live."
+  },
+  {
+    "id": 13,
+    "category": "STAFF DASHBOARD",
+    "feature": "Customer search / directory",
+    "status": "WORKING",
+    "details": "Searched for \"Kiran\" (GET /api/customers?search=Kiran -> 200). Successfully returned filtered customer records and updated the directory list in real time."
+  },
+  {
+    "id": 14,
+    "category": "CUSTOMER PORTAL",
+    "feature": "Browse fabric catalog for a shop",
+    "status": "WORKING",
+    "details": "Loads real fabric inventory from partner studio (GET /api/portal/shops/:tenantId/fabrics -> 200). Displays fabric type, color, meters available, pricing/m, and atelier fitting policy banner."
+  },
+  {
+    "id": 15,
+    "category": "CUSTOMER PORTAL",
+    "feature": "Place an order (full bespoke customer flow)",
+    "status": "WORKING",
+    "details": "Working end-to-end. Selected fabric from catalog, customized garment specs, and submitted (POST /api/portal/shops/:id/orders -> 201). Order logged, fabric stock reserved, and success alert rendered without reload."
+  },
+  {
+    "id": 16,
+    "category": "CUSTOMER PORTAL",
+    "feature": "View My Orders, My Invoices, My Measurements",
+    "status": "WORKING",
+    "details": "All 3 views populated with real customer records: My Orders (1 order cards via GET /api/portal/orders), My Invoices (1 records via GET /api/portal/invoices), My Measurements (1 measurement cards via GET /api/portal/measurements)."
+  },
+  {
+    "id": 17,
+    "category": "CUSTOMER PORTAL",
+    "feature": "Download an invoice PDF",
+    "status": "WORKING",
+    "details": "Working end-to-end. Clicked \"Download PDF\" (GET /api/portal/invoices/:id/pdf -> 200 application/pdf). Real PDF document streamed and downloaded via browser blob trigger."
+  },
+  {
+    "id": 18,
+    "category": "SUPER ADMIN",
+    "feature": "Tenants list, Revenue dashboard, Plans management",
+    "status": "WORKING",
+    "details": "All 3 views fully operational with live data: /admin/tenants (3 tenants rendered via GET /api/admin/tenants), /admin/revenue (MRR stat cards & charts via GET /api/admin/revenue), /admin/plans (subscription tiers & limits via GET /api/admin/plans)."
+  },
+  {
+    "id": 19,
+    "category": "SUPER ADMIN",
+    "feature": "Marketplace moderation (approve/reject listings)",
+    "status": "WORKING",
+    "details": "Dedicated moderation interface at /admin/moderation with Pending Studios and Flagged Reviews tabs. \"Approve Storefront\" calls POST /api/admin/marketplace/:id/approve and \"Reject\" opens rejection modal calling POST /api/admin/marketplace/:id/reject with admin feedback."
+  },
+  {
+    "id": 20,
+    "category": "CROSS-CUTTING",
+    "feature": "Forgot password",
+    "status": "MISSING",
+    "details": "No \"Forgot password\" link, reset form, or password recovery flow exists anywhere on /login, within the frontend router, or in the backend auth service. Users who forget credentials have no self-service password reset."
+  },
+  {
+    "id": 21,
+    "category": "CROSS-CUTTING",
+    "feature": "File / photo upload",
+    "status": "MISSING",
+    "details": "There is NO binary file upload (<input type=\"file\">) anywhere in the application. In Marketplace Profile Settings (/dashboard/marketplace-settings), coverPhotoUrl and portfolioPhotoUrls are plain text URL string inputs (<input type=\"url\">). In the Measurement Profile drawer, photo upload is completely omitted from the UI."
+  },
+  {
+    "id": 22,
+    "category": "CROSS-CUTTING",
+    "feature": "Login persistence and routing across ALL pages",
+    "status": "WORKING",
+    "details": "Confirmed working seamlessly. Navigating directly to and hard-refreshing on /dashboard/fabric, /dashboard/staff, /dashboard/products, and /dashboard/billing maintains the active view with zero premature redirects or logout loops."
+  }
+]

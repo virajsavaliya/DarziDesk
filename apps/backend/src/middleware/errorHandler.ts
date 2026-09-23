@@ -19,6 +19,7 @@ import { env } from '../config/env';
 import {
   PrismaClientKnownRequestError,
   PrismaClientValidationError,
+  PrismaClientInitializationError,
 } from '@prisma/client/runtime/library';
 
 interface UnknownError extends Error {
@@ -28,6 +29,9 @@ interface UnknownError extends Error {
 
 function mapToStatus(err: UnknownError): number {
   if (err instanceof AppError)                    return err.statusCode;
+  if (err instanceof PrismaClientInitializationError || err.message?.includes("Can't reach database server")) {
+    return 503;
+  }
   if (err instanceof PrismaClientKnownRequestError) {
     switch (err.code) {
       case 'P2002': return 409;
@@ -43,6 +47,9 @@ function mapToStatus(err: UnknownError): number {
 
 function mapToCode(err: UnknownError): string {
   if (err instanceof AppError)                       return err.code;
+  if (err instanceof PrismaClientInitializationError || err.message?.includes("Can't reach database server")) {
+    return 'DATABASE_UNAVAILABLE';
+  }
   if (err instanceof PrismaClientKnownRequestError)  return `PRISMA_${err.code}`;
   if (err instanceof ZodError)                       return 'VALIDATION_ERROR';
   return 'INTERNAL_SERVER_ERROR';

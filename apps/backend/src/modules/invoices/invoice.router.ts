@@ -11,6 +11,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { authenticateStaff } from '../../middleware/authenticate';
 import { requireTenantContext } from '../../middleware/tenantContext';
 import { apiLimiter } from '../../middleware/rateLimiter';
+import { idempotency } from '../../middleware/idempotency';
 import type { StaffJwtPayload } from '../../lib/jwt';
 import { ForbiddenError } from '../../lib/errors';
 import { UserRole } from '@prisma/client';
@@ -39,7 +40,7 @@ invoiceRouter.use(authenticateStaff, requireTenantContext, apiLimiter);
 // ---------------------------------------------------------------------------
 // POST /api/invoices/generate — Generate invoice from order
 // ---------------------------------------------------------------------------
-invoiceRouter.post('/generate', async (req: Request, res: Response, next: NextFunction) => {
+invoiceRouter.post('/generate', idempotency(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const tenantId = res.locals.tenantId as string;
     const auth = res.locals.auth as StaffJwtPayload;
@@ -134,7 +135,7 @@ invoiceRouter.get('/:id', async (req: Request, res: Response, next: NextFunction
 // ---------------------------------------------------------------------------
 // POST /api/invoices/:id/payments — Record manual payment (advance or full)
 // ---------------------------------------------------------------------------
-invoiceRouter.post('/:id/payments', async (req: Request, res: Response, next: NextFunction) => {
+invoiceRouter.post('/:id/payments', idempotency(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const tenantId = res.locals.tenantId as string;
     const auth = res.locals.auth as StaffJwtPayload;

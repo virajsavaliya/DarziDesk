@@ -347,129 +347,209 @@ export const SuperAdminTenantsView: React.FC<SuperAdminTenantsViewProps> = ({ au
         ) : tenants.length === 0 ? (
           <div className="p-12 text-center text-text-muted">No tenants matched your search criteria.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-text-primary">
-              <thead className="bg-surface-elevated border-b border-border text-xs uppercase tracking-wider text-text-muted">
-                <tr>
-                  <th className="py-3 px-4">Shop & Identifier</th>
-                  <th className="py-3 px-4">Plan & Cycle</th>
-                  <th className="py-3 px-4">Subscription Status</th>
-                  <th className="py-3 px-4">Staff Entitlement</th>
-                  <th className="py-3 px-4">Monthly Orders Limit</th>
-                  <th className="py-3 px-4">Joined</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {tenants.map((t) => {
-                  const sub = t.subscription;
-                  const maxStaff = sub?.plan.maxStaffAccounts || 5;
-                  const maxOrders = sub?.plan.maxOrdersPerMonth || 50;
-                  const staffPct = Math.min(100, Math.round((t.staffCount / maxStaff) * 100));
-                  const orderPct = Math.min(100, Math.round((t.orderCountThisPeriod / maxOrders) * 100));
+          <>
+            {/* Mobile Card List (< 768px) */}
+            <div className="md:hidden divide-y divide-border">
+              {tenants.map((t) => {
+                const sub = t.subscription;
+                const maxStaff = sub?.plan.maxStaffAccounts || 5;
+                const maxOrders = sub?.plan.maxOrdersPerMonth || 50;
+                const staffPct = Math.min(100, Math.round((t.staffCount / maxStaff) * 100));
+                const orderPct = Math.min(100, Math.round((t.orderCountThisPeriod / maxOrders) * 100));
 
-                  return (
-                    <tr key={t.id} className="hover:bg-surface-elevated/50 transition">
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-text-primary">{t.name}</div>
-                        <div className="text-xs text-text-muted flex items-center gap-2 mt-0.5">
-                          <span className="font-mono">{t.slug}</span>
+                return (
+                  <div key={t.id} className="p-4 space-y-3 bg-surface">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="font-bold text-sm text-text-primary">{t.name}</h4>
+                        <div className="text-xs text-text-muted flex items-center gap-1.5 mt-0.5 font-mono">
+                          <span>/{t.slug}</span>
                           {t.city && <span>• {t.city}</span>}
                         </div>
-                      </td>
+                      </div>
+                      {!t.isActive ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-300">
+                          <Ban className="w-3 h-3" /> Suspended
+                        </span>
+                      ) : sub?.status === 'ACTIVE' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300">
+                          <CheckCircle2 className="w-3 h-3" /> Active
+                        </span>
+                      ) : sub?.status === 'TRIAL' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-300">
+                          <Clock className="w-3 h-3" /> Trial
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+                          {sub?.status || 'Unknown'}
+                        </span>
+                      )}
+                    </div>
 
-                      <td className="py-3 px-4">
-                        {sub ? (
-                          <div className="flex flex-col">
-                            <span className="inline-flex items-center gap-1 font-semibold text-primary">
-                              <Layers className="w-3.5 h-3.5" />
-                              {sub.plan.name}
-                            </span>
-                            <span className="text-xs text-text-muted">
-                              {sub.billingCycle === 'YEARLY' ? 'Annual (₹' + Number(sub.plan.priceYearly).toLocaleString() + '/yr)' : 'Monthly (₹' + Number(sub.plan.priceMonthly).toLocaleString() + '/mo)'}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-text-muted text-xs">No Plan</span>
-                        )}
-                      </td>
-
-                      <td className="py-3 px-4">
-                        {!t.isActive ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-800">
-                            <Ban className="w-3 h-3" /> Suspended
-                          </span>
-                        ) : sub?.status === 'ACTIVE' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
-                            <CheckCircle2 className="w-3 h-3" /> Active
-                          </span>
-                        ) : sub?.status === 'TRIAL' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800">
-                            <Clock className="w-3 h-3" /> Trial
-                          </span>
-                        ) : sub?.status === 'PAST_DUE' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-800">
-                            <AlertCircle className="w-3 h-3" /> Past Due
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
-                            {sub?.status || 'Unknown'}
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="font-medium text-text-primary">{t.staffCount} / {maxStaff}</span>
-                          <span className="text-text-muted">{staffPct}%</span>
-                        </div>
-                        <div className="w-28 bg-border h-1.5 rounded-full overflow-hidden">
+                    <div className="grid grid-cols-2 gap-3 text-xs pt-2 border-t border-border/60">
+                      <div>
+                        <span className="text-text-muted text-[11px]">Staff ({t.staffCount}/{maxStaff})</span>
+                        <div className="w-full bg-border h-1.5 rounded-full overflow-hidden mt-1">
                           <div
                             className={`h-full ${staffPct >= 100 ? 'bg-rose-500' : staffPct >= 80 ? 'bg-amber-500' : 'bg-primary'}`}
                             style={{ width: `${staffPct}%` }}
                           />
                         </div>
-                      </td>
-
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="font-medium text-text-primary">{t.orderCountThisPeriod} / {maxOrders}</span>
-                          <span className="text-text-muted">{orderPct}%</span>
-                        </div>
-                        <div className="w-28 bg-border h-1.5 rounded-full overflow-hidden">
+                      </div>
+                      <div>
+                        <span className="text-text-muted text-[11px]">Orders ({t.orderCountThisPeriod}/{maxOrders})</span>
+                        <div className="w-full bg-border h-1.5 rounded-full overflow-hidden mt-1">
                           <div
                             className={`h-full ${orderPct >= 100 ? 'bg-rose-500' : orderPct >= 80 ? 'bg-amber-500' : 'bg-primary'}`}
                             style={{ width: `${orderPct}%` }}
                           />
                         </div>
-                      </td>
+                      </div>
+                    </div>
 
-                      <td className="py-3 px-4 text-xs text-text-muted">
-                        {new Date(t.createdAt).toLocaleDateString()}
-                      </td>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-xs font-semibold text-primary">
+                        {sub ? sub.plan.name : 'No Plan'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDetail(t.id)}
+                        className="min-h-[38px] px-3.5 py-1.5 text-xs font-bold rounded-xl bg-surface-elevated border border-border hover:bg-surface text-primary transition flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>Manage</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => handleOpenDetail(t.id)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-surface-elevated hover:bg-surface text-primary transition"
-                        >
-                          Inspect & Manage
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+            {/* Desktop Table (>= 768px) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-sm text-text-primary">
+                <thead className="bg-surface-elevated border-b border-border text-xs uppercase tracking-wider text-text-muted">
+                  <tr>
+                    <th className="py-3 px-4">Shop & Identifier</th>
+                    <th className="py-3 px-4">Plan & Cycle</th>
+                    <th className="py-3 px-4">Subscription Status</th>
+                    <th className="py-3 px-4">Staff Entitlement</th>
+                    <th className="py-3 px-4">Monthly Orders Limit</th>
+                    <th className="py-3 px-4">Joined</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {tenants.map((t) => {
+                    const sub = t.subscription;
+                    const maxStaff = sub?.plan.maxStaffAccounts || 5;
+                    const maxOrders = sub?.plan.maxOrdersPerMonth || 50;
+                    const staffPct = Math.min(100, Math.round((t.staffCount / maxStaff) * 100));
+                    const orderPct = Math.min(100, Math.round((t.orderCountThisPeriod / maxOrders) * 100));
+
+                    return (
+                      <tr key={t.id} className="hover:bg-surface-elevated/50 transition">
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-text-primary">{t.name}</div>
+                          <div className="text-xs text-text-muted flex items-center gap-2 mt-0.5">
+                            <span className="font-mono">{t.slug}</span>
+                            {t.city && <span>• {t.city}</span>}
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-4">
+                          {sub ? (
+                            <div className="flex flex-col">
+                              <span className="inline-flex items-center gap-1 font-semibold text-primary">
+                                <Layers className="w-3.5 h-3.5" />
+                                {sub.plan.name}
+                              </span>
+                              <span className="text-xs text-text-muted">
+                                {sub.billingCycle === 'YEARLY' ? 'Annual (₹' + Number(sub.plan.priceYearly).toLocaleString() + '/yr)' : 'Monthly (₹' + Number(sub.plan.priceMonthly).toLocaleString() + '/mo)'}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-text-muted text-xs">No Plan</span>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4">
+                          {!t.isActive ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-800">
+                              <Ban className="w-3 h-3" /> Suspended
+                            </span>
+                          ) : sub?.status === 'ACTIVE' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
+                              <CheckCircle2 className="w-3 h-3" /> Active
+                            </span>
+                          ) : sub?.status === 'TRIAL' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800">
+                              <Clock className="w-3 h-3" /> Trial
+                            </span>
+                          ) : sub?.status === 'PAST_DUE' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-800">
+                              <AlertCircle className="w-3 h-3" /> Past Due
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+                              {sub?.status || 'Unknown'}
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4">
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="font-medium text-text-primary">{t.staffCount} / {maxStaff}</span>
+                            <span className="text-text-muted">{staffPct}%</span>
+                          </div>
+                          <div className="w-28 bg-border h-1.5 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${staffPct >= 100 ? 'bg-rose-500' : staffPct >= 80 ? 'bg-amber-500' : 'bg-primary'}`}
+                              style={{ width: `${staffPct}%` }}
+                            />
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-4">
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="font-medium text-text-primary">{t.orderCountThisPeriod} / {maxOrders}</span>
+                            <span className="text-text-muted">{orderPct}%</span>
+                          </div>
+                          <div className="w-28 bg-border h-1.5 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${orderPct >= 100 ? 'bg-rose-500' : orderPct >= 80 ? 'bg-amber-500' : 'bg-primary'}`}
+                              style={{ width: `${orderPct}%` }}
+                            />
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-4 text-xs text-text-muted">
+                          {new Date(t.createdAt).toLocaleDateString()}
+                        </td>
+
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            onClick={() => handleOpenDetail(t.id)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-surface-elevated hover:bg-surface text-primary transition"
+                          >
+                            Inspect & Manage
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
       {/* ── Slide-Over Detail Drawer ────────────────────────────────────────── */}
       {selectedTenantId && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-2xl bg-surface border-l border-border h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
+          <div className="w-full max-w-full sm:max-w-2xl bg-surface border-l border-border h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
             {/* Drawer Header */}
             <div className="p-6 border-b border-border flex items-center justify-between">
               <div>
@@ -497,7 +577,7 @@ export const SuperAdminTenantsView: React.FC<SuperAdminTenantsViewProps> = ({ au
               ) : (
                 <>
                   {/* Status & Quick Actions Banner */}
-                  <div className="bg-surface-elevated border border-border rounded-xl p-4 flex items-center justify-between">
+                  <div className="bg-surface-elevated border border-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <span className="text-xs text-text-muted uppercase font-semibold">Current Platform Status</span>
                       <div className="flex items-center gap-2 mt-1">
@@ -538,7 +618,7 @@ export const SuperAdminTenantsView: React.FC<SuperAdminTenantsViewProps> = ({ au
                   </div>
 
                   {/* Entitlement Resource Meters */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="bg-surface-elevated border border-border rounded-xl p-4">
                       <span className="text-xs text-text-muted uppercase font-semibold">Staff Accounts Allocated</span>
                       <div className="text-2xl font-bold text-text-primary mt-1">

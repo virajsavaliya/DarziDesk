@@ -18,7 +18,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
   return (
     <div className={`bg-surface border border-border rounded-xl p-5 shadow-sm ${className}`}>
       {(title || action) && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 mb-4 border-b border-border/60">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 mb-4 border-b border-border/60 shrink-0">
           <div>
             {title && (
               <h2 className="text-base font-bold text-text-primary">
@@ -34,7 +34,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
           {action && <div className="shrink-0">{action}</div>}
         </div>
       )}
-      <div>{children}</div>
+      <div className="flex-1 flex flex-col min-h-0">{children}</div>
     </div>
   );
 };

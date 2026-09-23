@@ -98,7 +98,7 @@ export async function createTenant(
 // ---------------------------------------------------------------------------
 
 export async function createUser(
-  tenantId: string,
+  tenantId: string | null,
   overrides: Partial<{
     email: string;
     password: string;
@@ -256,3 +256,5 @@ export async function createFabricRecord(
     },
   });
 }
+
+export const createFabric = createFabricRecord;

@@ -52,7 +52,8 @@ Darzi_desk/
 │   │   │   │   └── portal/          # Customer portal (Orders, Catalog, Measurements, Invoices)
 └── docs/
     ├── design.md                    # Single source of truth for UI/UX & design tokens
-    └── architecture.md              # Architectural & domain guidelines
+    ├── architecture.md              # Architectural & domain guidelines
+    └── saas_product_and_super_admin_guide.md # SaaS workflows & Platform Super Admin guide
 ```
 
 ---
@@ -77,10 +78,13 @@ Darzi_desk/
 
 DarziDesk strictly implements a **two-layer tenant isolation architecture**:
 
-### Layer 1: Application-Level Scoping (`Prisma`)
+### Layer 1: Application-Level Scoping (`Prisma`) & Zero Trust Client Headers
 - Every database query touching tenant-scoped models must explicitly filter by `where: { tenantId }`.
 - `tenantId` is **ALWAYS** derived from the verified JWT payload (`res.locals.auth.tenantId`).
-- **NEVER** accept `tenantId` from request parameters, request body, query strings, or client headers.
+- **ZERO TRUST HEADER ARCHITECTURE**: Client-supplied `x-tenant-id` headers are **NEVER** trusted. Injected tenant headers are strictly stripped and ignored.
+- **SUPER ADMIN SUPPORT SESSIONS**: Super Admins cannot access tenant-scoped routes with a bare JWT. They must present a cryptographically verified `x-support-session-token` issued via a server-authoritative `SupportSession`.
+- Support sessions default to `READ_ONLY` scope. Any mutation (`POST`, `PUT`, `PATCH`, `DELETE`) under `READ_ONLY` is rejected with `403 SUPPORT_READ_ONLY`. Elevated `READ_WRITE` sessions require mandatory business justification and are heavily audited.
+- **TENANT LIFECYCLE CHECK**: `tenantContext` verifies `tenant.lifecycleState !== SUSPENDED`. Suspended tenants are rejected with `403 TENANT_SUSPENDED`. Tenant lifecycle states (`REGISTERED`, `ACTIVE`, `SUSPENDED`, `CANCELLED`, `ARCHIVED`) are strictly decoupled from billing subscription statuses (`TRIAL`, `ACTIVE`, `PAST_DUE`, `CANCELLED`, `EXPIRED`).
 
 ### Layer 2: Database-Level Row Level Security (`Postgres RLS`)
 Implemented in `apps/backend/src/lib/prisma.ts` via `withTenantContext`:
@@ -104,11 +108,53 @@ export async function withTenantContext<T>(
   - `users`, `shop_customer_links`, `garment_templates`, `measurement_profiles`, `measurement_profile_versions`
   - `fabrics`, `fabric_stock_transactions`, `orders`, `order_status_logs`
   - `tenant_pricing_rules`, `invoices`, `invoice_payments`, `notification_logs`, `notification_configs`
+  - `idempotency_records`
 - **Postgres Policy**:
   - `USING (tenant_id = current_setting('app.tenant_id', true))`
   - The `true` parameter makes `set_config` transaction-scoped, preventing connection pool cross-contamination.
 - **Cross-Shop Aggregation Exception**:
   - In customer portal endpoints (`/api/portal/orders`, `/api/portal/invoices`), queries are scoped to the authenticated customer ID (`customerId`) joined with `ShopCustomerLink` to strictly ensure customer ownership across linked ateliers without data bleeding from unlinked shops.
+
+---
+
+## 3.1. Dynamic Server-Side Authorization & Permissions
+
+- JWTs are **NOT** authoritative for fine-grained permissions. JWTs store identity (`userId`, `role`, `tenantId`, `authzVersion`).
+- Permission authorization is evaluated dynamically server-side via `requirePermission(permission)` middleware.
+- In-memory permission cache keyed by `userId` is validated against DB `user.authzVersion`.
+- Dynamic permission revocation or role alteration immediately increments `authzVersion`, causing instant cache eviction across all running instances without requiring token re-issuance.
+
+---
+
+## 3.2. Concurrency Control & Transactional Integrity
+
+1. **Optimistic Locking on Orders**:
+   - `Order` schema maintains an integer `version` field (default 1).
+   - Any order state transition (`transitionOrderStatus`) checks and increments `version` in a single query (`WHERE id = :id AND version = :version`).
+   - Stale or concurrent transition attempts fail immediately with `409 CONFLICT` (`STALE_OBJECT_STATE`), preventing race conditions.
+
+2. **Pessimistic Locking on Inventory**:
+   - `reserveStock` and `adjustStock` utilize `SELECT ... FOR UPDATE` via raw SQL on Postgres to ensure serialized, atomic stock changes under high concurrency.
+
+3. **Idempotency Protection**:
+   - Critical mutation endpoints (`/api/invoices/generate`, `/api/invoices/:id/payments`) support the `Idempotency-Key` header.
+   - Cached responses are stored in `IdempotencyRecord` for 24 hours and replayed with the `X-Idempotent-Replay: true` header.
+
+---
+
+## 3.3. Transactional Outbox Pattern
+
+- Asynchronous events (`ORDER_CREATED`, `ORDER_STATUS_TRANSITIONED`, `INVOICE_GENERATED`, `INVOICE_PAYMENT_RECORDED`) are written atomically to `OutboxEvent` within the same database transaction as the domain entity.
+- Background worker processes pending events using pessimistic row claiming (`lockedAt`, `lockedBy`) to prevent duplicate processing across distributed workers.
+- Exponential backoff with up to 5 retries. Failed events transition to `DEAD_LETTER` state and are visible in the Super Admin Operations Queue for manual retry.
+
+---
+
+## 3.4. Relational Feature Flags & Overrides
+
+- Platform-wide feature flags are managed via `PlatformFeatureFlag` (key, description, isEnabledGlobally).
+- Per-tenant customization is supported via `TenantFeatureFlagOverride` with a database-enforced compound unique constraint `@@unique([featureFlagId, tenantId])`.
+- Flag resolution order: Tenant override (if exists) -> Global platform flag -> Default fallback.
 
 ---
 

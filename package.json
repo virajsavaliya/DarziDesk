@@ -11,11 +11,15 @@
     "packages/*"
   ],
   "scripts": {
+    "dev": "docker compose up -d postgres && concurrently -n backend,frontend -c blue,magenta \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "dev:backend": "npm run dev --workspace=apps/backend",
-    "dev:frontend": "npm run dev --workspace=apps/frontend"
+    "dev:frontend": "npm run dev --workspace=apps/frontend",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:status": "docker compose ps"
   },
   "overrides": {
     "express": {
@@ -23,6 +27,7 @@
     }
   },
   "devDependencies": {
+    "concurrently": "^10.0.5",
     "playwright": "^1.63.0"
   }
 }

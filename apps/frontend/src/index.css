@@ -94,3 +94,148 @@
   --color-dark-error:         #F87171;
   --color-dark-info:          #60A5FA;
 }
+
+/* ── Scrollbar Utilities & Suppression ─────────────────────── */
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Hide scrollbar specifically on sidebar containers */
+aside nav,
+[data-sidebar] nav,
+nav.no-scrollbar {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+aside nav::-webkit-scrollbar,
+[data-sidebar] nav::-webkit-scrollbar,
+nav.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Subtle, sleek scrollbars across the rest of the application */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+/* ── Safe Area & Dynamic Viewport Utilities ─────────────────── */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.h-dvh {
+  height: 100dvh;
+}
+.max-h-dvh {
+  max-height: 100dvh;
+}
+.min-h-dvh {
+  min-height: 100dvh;
+}
+
+/* ── Gesture Scoping for Interactive Canvases ───────────────── */
+.touch-action-none {
+  touch-action: none;
+}
+.touch-action-pan-y {
+  touch-action: pan-y;
+}
+
+/* ── Accessibility: Reduced Motion ─────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Print Utilities & Professional Workshop Print Engine ── */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm 10mm 10mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide navigation, sidebars, headers, app chrome, modals, buttons */
+  aside,
+  nav,
+  header,
+  [data-sidebar],
+  button,
+  .no-print,
+  .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  /* Display ONLY the printable measurement sheet */
+  #printable-measurement-sheet,
+  #printable-measurement-sheet * {
+    visibility: visible !important;
+  }
+
+  #printable-measurement-sheet {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
+

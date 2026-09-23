@@ -99,7 +99,10 @@ export const SuperAdminModerationView: React.FC<SuperAdminModerationViewProps> =
           Authorization: `Bearer ${authToken}`,
         },
       });
-      if (!res.ok) throw new Error(`Approval failed (${res.status})`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error?.message || errData?.message || `Approval failed (${res.status})`);
+      }
       showToast('success', 'Shop listing approved and published live to marketplace!');
       setPendingShops((prev) => prev.filter((s) => s.id !== tenantId));
       if (inspectingShop?.id === tenantId) setInspectingShop(null);
@@ -124,7 +127,10 @@ export const SuperAdminModerationView: React.FC<SuperAdminModerationViewProps> =
         },
         body: JSON.stringify({ reason: rejectionReason.trim() || undefined }),
       });
-      if (!res.ok) throw new Error(`Rejection failed (${res.status})`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error?.message || errData?.message || `Rejection failed (${res.status})`);
+      }
       showToast('success', 'Shop listing marked as rejected with feedback sent to owner.');
       setPendingShops((prev) => prev.filter((s) => s.id !== rejectingShopId));
       setRejectingShopId(null);
@@ -149,7 +155,10 @@ export const SuperAdminModerationView: React.FC<SuperAdminModerationViewProps> =
         },
         body: JSON.stringify({ action }),
       });
-      if (!res.ok) throw new Error(`Failed to resolve review (${res.status})`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error?.message || errData?.message || `Failed to resolve review (${res.status})`);
+      }
       showToast(
         'success',
         action === 'REMOVE'

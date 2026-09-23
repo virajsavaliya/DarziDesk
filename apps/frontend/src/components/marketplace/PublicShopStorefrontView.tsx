@@ -106,23 +106,23 @@ export const PublicShopStorefrontView: React.FC<PublicShopStorefrontViewProps> =
       {/* ── Back Navigation ────────────────────────────────────────── */}
       <button
         onClick={onBack}
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 hover:bg-orange-50 text-slate-700 hover:text-orange-600 text-xs font-bold transition-all border border-slate-200 hover:border-orange-200 cursor-pointer shadow-xs"
       >
         <ArrowLeft className="w-4 h-4" />
-        <span>Back to Discovery</span>
+        <span>Back to Tailor Directory</span>
       </button>
 
       {/* ── Storefront Banner ──────────────────────────────────────── */}
-      <div className="relative rounded-3xl overflow-hidden bg-slate-900 border border-border shadow-md">
+      <div className="relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-200 shadow-md">
         <div className="h-64 sm:h-80 w-full relative">
           {shop.coverPhotoUrl ? (
             <img
               src={shop.coverPhotoUrl}
               alt={shop.name}
-              className="w-full h-full object-cover opacity-80"
+              className="w-full h-full object-cover opacity-85"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-r from-brand to-slate-900 flex items-center justify-center text-white/20">
+            <div className="w-full h-full bg-gradient-to-r from-slate-900 via-orange-950 to-slate-900 flex items-center justify-center text-white/20">
               <Store className="w-24 h-24" />
             </div>
           )}
@@ -132,24 +132,24 @@ export const PublicShopStorefrontView: React.FC<PublicShopStorefrontViewProps> =
         {/* Overlay Content */}
         <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
           <div className="space-y-2 text-white">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand/80 border border-white/20 text-[11px] font-bold uppercase tracking-wider backdrop-blur-sm">
-              <CheckCircle2 className="w-3.5 h-3.5 text-accent" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/90 border border-white/20 text-[11px] font-bold uppercase tracking-wider backdrop-blur-sm shadow-sm">
+              <CheckCircle2 className="w-3.5 h-3.5 text-white" />
               <span>Verified DarziDesk Atelier</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{shop.name}</h1>
             <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300">
               {shop.city && (
                 <div className="flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-accent" />
+                  <MapPin className="w-3.5 h-3.5 text-orange-400" />
                   <span>{shop.city}</span>
                 </div>
               )}
               <div className="flex items-center gap-1">
-                <Star className="w-3.5 h-3.5 text-accent fill-accent" />
+                <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
                 <span className="font-bold text-white font-mono">
                   {shop.avgRating ? shop.avgRating.toFixed(1) : 'New'}
                 </span>
-                <span className="text-slate-400 font-normal">
+                <span className="text-slate-300 font-normal">
                   ({shop.reviewCount} {shop.reviewCount === 1 ? 'review' : 'reviews'})
                 </span>
               </div>
@@ -159,7 +159,7 @@ export const PublicShopStorefrontView: React.FC<PublicShopStorefrontViewProps> =
           {/* Direct CTA */}
           <button
             onClick={() => onStartOrder(shop.id)}
-            className="px-6 py-3 bg-accent hover:bg-accent-dark text-white rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
+            className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-sm font-bold shadow-lg hover:shadow-orange-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 transform hover:-translate-y-0.5"
           >
             <Scissors className="w-4 h-4" />
             <span>Start an Order</span>
@@ -173,16 +173,16 @@ export const PublicShopStorefrontView: React.FC<PublicShopStorefrontViewProps> =
         <div className="lg:col-span-2 space-y-8">
           {/* Specialty Crafts */}
           {shop.specialtyTags && shop.specialtyTags.length > 0 && (
-            <div className="bg-surface border border-border rounded-2xl p-6 space-y-3 shadow-sm">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-text-secondary flex items-center gap-2">
-                <Scissors className="w-4 h-4 text-brand" />
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 space-y-3 shadow-xs">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <Scissors className="w-4 h-4 text-orange-500" />
                 <span>Specialty Craftsmanship</span>
               </h2>
               <div className="flex flex-wrap gap-2 pt-1">
                 {shop.specialtyTags.map((tag) => (
                   <span
                     key={tag}
-                    className="px-3 py-1 rounded-lg bg-brand/5 border border-brand/10 text-brand text-xs font-semibold"
+                    className="px-3 py-1 rounded-lg bg-orange-50 border border-orange-200/60 text-orange-800 text-xs font-semibold"
                   >
                     {tag}
                   </span>
@@ -193,15 +193,15 @@ export const PublicShopStorefrontView: React.FC<PublicShopStorefrontViewProps> =
 
           {/* Portfolio Showcase */}
           {shop.portfolioPhotoUrls && shop.portfolioPhotoUrls.length > 0 && (
-            <div className="bg-surface border border-border rounded-2xl p-6 space-y-4 shadow-sm">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-text-secondary">
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 space-y-4 shadow-xs">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700">
                 Atelier Portfolio & Creations
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {shop.portfolioPhotoUrls.map((photo, i) => (
                   <div
                     key={i}
-                    className="h-40 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-border group"
+                    className="h-40 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 group"
                   >
                     <img
                       src={photo}
@@ -215,24 +215,25 @@ export const PublicShopStorefrontView: React.FC<PublicShopStorefrontViewProps> =
           )}
 
           {/* Verified Customer Reviews */}
-          <div className="bg-surface border border-border rounded-2xl p-6 space-y-6 shadow-sm">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 space-y-6 shadow-xs">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-bold uppercase tracking-wider text-text-secondary">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700">
                   Verified Client Reviews
                 </h2>
-                <p className="text-xs text-text-muted mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Reviews left strictly by clients with delivered garments.
                 </p>
               </div>
-              <div className="flex items-center gap-1 bg-background border border-border px-3 py-1 rounded-full text-xs">
-                <Star className="w-3.5 h-3.5 text-accent fill-accent" />
-                <span className="font-bold text-text-primary font-mono">
+              <div className="flex items-center gap-1 bg-orange-50 border border-orange-200 px-3 py-1 rounded-full text-xs">
+                <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+                <span className="font-bold text-slate-800 font-mono">
                   {shop.avgRating ? shop.avgRating.toFixed(1) : '—'}
                 </span>
-                <span className="text-text-muted">/ 5.0</span>
+                <span className="text-slate-500">/ 5.0</span>
               </div>
             </div>
+
 
             {shop.reviews && shop.reviews.length > 0 ? (
               <div className="space-y-4 divide-y divide-border">
@@ -288,38 +289,38 @@ export const PublicShopStorefrontView: React.FC<PublicShopStorefrontViewProps> =
         {/* Right Col: Hours & Workshop Info */}
         <div className="space-y-6">
           {/* Working Hours */}
-          <div className="bg-surface border border-border rounded-2xl p-6 space-y-4 shadow-sm">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-text-secondary flex items-center gap-2">
-              <Clock className="w-4 h-4 text-brand" />
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 space-y-4 shadow-xs">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-orange-500" />
               <span>Workshop Hours</span>
             </h2>
             {shop.workingHours && Object.keys(shop.workingHours).length > 0 ? (
-              <div className="space-y-2 text-xs divide-y divide-border/60">
+              <div className="space-y-2 text-xs divide-y divide-slate-100">
                 {Object.entries(shop.workingHours).map(([key, val]) => (
                   <div key={key} className="flex items-center justify-between pt-2 first:pt-0">
-                    <span className="text-text-secondary capitalize">
+                    <span className="text-slate-600 capitalize">
                       {key.replace('_', ' ')}
                     </span>
-                    <span className="font-semibold text-text-primary font-mono">
+                    <span className="font-semibold text-slate-900 font-mono">
                       {String(val)}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-text-muted italic">Hours available upon inquiry.</p>
+              <p className="text-xs text-slate-400 italic">Hours available upon inquiry.</p>
             )}
           </div>
 
           {/* Bespoke Ordering Card */}
-          <div className="bg-gradient-to-br from-brand/5 to-accent/5 border border-brand/15 rounded-2xl p-6 space-y-3 text-center">
-            <h3 className="text-sm font-bold text-text-primary">Ready to Commission?</h3>
-            <p className="text-xs text-text-secondary leading-relaxed">
+          <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-6 space-y-3 text-center">
+            <h3 className="text-sm font-bold text-slate-900">Ready to Commission?</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">
               Explore available bespoke cloths, configure custom measurements, and track your tailored garment in real time.
             </p>
             <button
               onClick={() => onStartOrder(shop.id)}
-              className="w-full py-2.5 px-4 bg-brand hover:bg-brand-dark text-white rounded-xl text-xs font-bold shadow transition-colors cursor-pointer"
+              className="w-full py-2.5 px-4 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-orange-500/25 transition-colors cursor-pointer"
             >
               Browse Fabric Catalog & Order →
             </button>

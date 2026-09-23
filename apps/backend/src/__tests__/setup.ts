@@ -42,6 +42,12 @@ beforeEach(async () => {
   // Truncate in reverse FK order to respect foreign key constraints
   await testPrisma.$executeRaw`
     TRUNCATE TABLE
+      "idempotency_records",
+      "outbox_events",
+      "tenant_feature_flag_overrides",
+      "platform_feature_flags",
+      "platform_audit_logs",
+      "support_sessions",
       "notification_logs",
       "invoice_payments",
       "invoices",

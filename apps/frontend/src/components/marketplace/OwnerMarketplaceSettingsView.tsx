@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Save,
   Navigation,
+  Check,
 } from 'lucide-react';
 import type { MarketplaceSettings } from '../../types/dashboard';
 
@@ -485,13 +486,23 @@ export const OwnerMarketplaceSettingsView: React.FC<OwnerMarketplaceSettingsView
                     key={tag}
                     type="button"
                     onClick={() => (!isSelected ? handleAddTag(tag) : handleRemoveTag(tag))}
-                    className={`text-xs px-2.5 py-1 rounded-lg transition-colors border ${
+                    className={`text-xs px-2.5 py-1 rounded-lg transition-colors border inline-flex items-center gap-1 ${
                       isSelected
                         ? 'bg-accent text-white border-accent'
                         : 'bg-surface-muted hover:bg-border text-text-secondary border-border'
                     }`}
                   >
-                    {isSelected ? `✓ ${tag}` : `+ ${tag}`}
+                    {isSelected ? (
+                      <>
+                        <Check className="w-3 h-3 stroke-[2.5]" />
+                        <span>{tag}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-3 h-3" />
+                        <span>{tag}</span>
+                      </>
+                    )}
                   </button>
                 );
               })}

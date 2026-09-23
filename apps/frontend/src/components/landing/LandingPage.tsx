@@ -30,12 +30,19 @@ import {
   FileText,
   Package,
   Ruler,
-  Menu,
   X,
+  Navigation,
+  Globe,
+  RefreshCw,
+  Sparkles,
+  Store,
 } from 'lucide-react';
+import type { PublicShop } from '../../types/dashboard';
 import { ThreeCanvas } from './ThreeCanvas';
 import { ThreeDCard } from './ThreeDCard';
 import { Hero3DDashboard } from './Hero3DDashboard';
+import { PublicNavbar } from './PublicNavbar';
+import { PublicFooter } from './PublicFooter';
 
 interface PublicPlan {
   id: string;
@@ -48,10 +55,136 @@ interface PublicPlan {
   isDefault: boolean;
 }
 
+const DEFAULT_PLANS: PublicPlan[] = [
+  {
+    id: 'plan-basic',
+    name: 'Basic',
+    priceMonthly: '1999',
+    priceYearly: '19999',
+    maxStaffAccounts: 2,
+    maxOrdersPerMonth: 20,
+    features: [
+      'Up to 2 Staff Accounts',
+      '20 Orders / month',
+      'Digital Measurement Book',
+      'Fabric Inventory Ledger',
+      'Standard PDF Invoices',
+      'Customer SMS Notifications',
+    ],
+    isDefault: false,
+  },
+  {
+    id: 'plan-pro',
+    name: 'Pro',
+    priceMonthly: '4999',
+    priceYearly: '49999',
+    maxStaffAccounts: 10,
+    maxOrdersPerMonth: 250,
+    features: [
+      'Up to 10 Staff Accounts',
+      '250 Orders / month',
+      'Full Fabric Roll & Scrap Tracking',
+      'Marketplace Discovery & Public Storefront',
+      'Customer Portal with Self-Tracking',
+      'Automated SMS & WhatsApp Alerts',
+      'GST Compliant PDF Invoicing',
+    ],
+    isDefault: true,
+  },
+  {
+    id: 'plan-enterprise',
+    name: 'Enterprise',
+    priceMonthly: '12999',
+    priceYearly: '129999',
+    maxStaffAccounts: 50,
+    maxOrdersPerMonth: 2000,
+    features: [
+      'Unlimited Tailoring Stations',
+      'Multi-Branch Inventory Sync',
+      'Priority Marketplace Placement',
+      'Dedicated Account Manager',
+      'Custom Domain & Branding',
+      '24/7 Priority Support',
+    ],
+    isDefault: false,
+  },
+];
+
+function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Number((R * c).toFixed(1));
+}
+
+const DEFAULT_FALLBACK_SHOPS: PublicShop[] = [
+  {
+    id: 'shree-ganesh',
+    name: 'Shree Ganesh Bespoke Tailors',
+    slug: 'demo',
+    city: 'Surat',
+    latitude: 21.1702,
+    longitude: 72.8311,
+    specialtyTags: ['Bespoke Suits', 'Wedding Sherwanis', 'Handloom Kurtas', 'Formal Shirts'],
+    coverPhotoUrl: shopGaneshImg,
+    portfolioPhotoUrls: [],
+    workingHours: null,
+    avgRating: 4.9,
+    reviewCount: 125,
+  },
+  {
+    id: 'royal-stitch',
+    name: 'Royal Stitch Atelier',
+    slug: 'royal-stitch-surat',
+    city: 'Surat',
+    latitude: 21.1959,
+    longitude: 72.7933,
+    specialtyTags: ["Men's Wear", 'Blazers', 'Alterations', 'Tuxedos'],
+    coverPhotoUrl: shopRoyalImg,
+    portfolioPhotoUrls: [],
+    workingHours: null,
+    avgRating: 4.8,
+    reviewCount: 98,
+  },
+  {
+    id: 'modern-fit',
+    name: 'Modern Fit Tailors',
+    slug: 'modern-fit-surat',
+    city: 'Surat',
+    latitude: 21.161,
+    longitude: 72.771,
+    specialtyTags: ['Suits', 'Sherwani', 'Custom Design', 'Safari Suits'],
+    coverPhotoUrl: shopModernImg,
+    portfolioPhotoUrls: [],
+    workingHours: null,
+    avgRating: 4.7,
+    reviewCount: 170,
+  },
+  {
+    id: 'imperial-bespoke',
+    name: 'Imperial Bespoke Atelier',
+    slug: 'imperial-bespoke-mumbai',
+    city: 'Mumbai',
+    latitude: 18.922,
+    longitude: 72.834,
+    specialtyTags: ['Italian Wool Suits', 'Tuxedos', 'Silk Bandhgalas'],
+    coverPhotoUrl: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=80',
+    portfolioPhotoUrls: [],
+    workingHours: null,
+    avgRating: 5.0,
+    reviewCount: 42,
+  },
+];
+
 export const LandingPage: React.FC = () => {
-  const [scrolled, setScrolled] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [plans, setPlans] = useState<PublicPlan[]>([]);
+  const [plans, setPlans] = useState<PublicPlan[]>(DEFAULT_PLANS);
   const [isYearly, setIsYearly] = useState(false);
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({
@@ -60,14 +193,174 @@ export const LandingPage: React.FC = () => {
     'modern-fit': false,
   });
 
-  // Track scroll for sticky nav
+  // Nearest Tailors Marketplace Showcase State
+  const [nearestShops, setNearestShops] = useState<PublicShop[]>([]);
+  const [loadingShops, setLoadingShops] = useState<boolean>(true);
+  const [locationSource, setLocationSource] = useState<'detecting' | 'gps' | 'ip'>('detecting');
+  const [userLocation, setUserLocation] = useState<{
+    city: string;
+    latitude: number;
+    longitude: number;
+    isFallback?: boolean;
+  } | null>(null);
+  const [carouselPage, setCarouselPage] = useState<number>(0);
+  const [requestingGps, setRequestingGps] = useState<boolean>(false);
+  const [selectedCityFilter, setSelectedCityFilter] = useState<string>('All');
+
+  // Load shops from backend using coordinates, with distance calculation & fallback
+  const loadShopsForCoordinates = async (lat: number, lng: number, _cityHint?: string) => {
+    setLoadingShops(true);
+    try {
+      const res = await fetch(`/api/marketplace/shops?lat=${lat}&lng=${lng}&limit=12`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const shopList: PublicShop[] = Array.isArray(json?.data) ? json.data : [];
+      if (shopList.length > 0) {
+        setNearestShops(shopList);
+      } else {
+        // Compute distance from fallback shops
+        const computed = DEFAULT_FALLBACK_SHOPS.map((s) => ({
+          ...s,
+          distanceKm:
+            s.latitude !== null && s.longitude !== null
+              ? calculateDistanceKm(lat, lng, s.latitude, s.longitude)
+              : null,
+        })).sort((a, b) => (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999));
+        setNearestShops(computed);
+      }
+    } catch (_err) {
+      // Offline / API error fallback with distance calculation
+      const computed = DEFAULT_FALLBACK_SHOPS.map((s) => ({
+        ...s,
+        distanceKm:
+          s.latitude !== null && s.longitude !== null
+            ? calculateDistanceKm(lat, lng, s.latitude, s.longitude)
+            : null,
+      })).sort((a, b) => (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999));
+      setNearestShops(computed);
+    } finally {
+      setLoadingShops(false);
+    }
+  };
+
+  // Fallback to IP address location detection
+  const detectLocationByIp = async () => {
+    setLocationSource('detecting');
+    try {
+      const res = await fetch('/api/marketplace/detect-location');
+      if (res.ok) {
+        const json = await res.json();
+        const data = json?.data;
+        if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+          setUserLocation({
+            city: data.city || 'Surat',
+            latitude: data.latitude,
+            longitude: data.longitude,
+            isFallback: data.isFallback,
+          });
+          setLocationSource('ip');
+          await loadShopsForCoordinates(data.latitude, data.longitude, data.city);
+          return;
+        }
+      }
+
+      // Direct client fallback to ipwho.is if backend /detect-location was unreachable
+      const ipRes = await fetch('https://ipwho.is/');
+      if (ipRes.ok) {
+        const ipData = await ipRes.json();
+        if (ipData && ipData.success !== false && ipData.latitude && ipData.longitude) {
+          setUserLocation({
+            city: ipData.city || 'Surat',
+            latitude: Number(ipData.latitude),
+            longitude: Number(ipData.longitude),
+          });
+          setLocationSource('ip');
+          await loadShopsForCoordinates(Number(ipData.latitude), Number(ipData.longitude), ipData.city);
+          return;
+        }
+      }
+    } catch (_e) {
+      // Silent error fallback
+    }
+
+    // Default to Surat if all detection fails
+    const defaultCoords = { city: 'Surat', latitude: 21.1702, longitude: 72.8311, isFallback: true };
+    setUserLocation(defaultCoords);
+    setLocationSource('ip');
+    await loadShopsForCoordinates(defaultCoords.latitude, defaultCoords.longitude, defaultCoords.city);
+  };
+
+  // Explicit user trigger to re-request GPS location
+  const requestGpsLocation = () => {
+    if (!navigator.geolocation) {
+      detectLocationByIp();
+      return;
+    }
+    setRequestingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setRequestingGps(false);
+        const coords = {
+          city: 'Your GPS Location',
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        };
+        setUserLocation(coords);
+        setLocationSource('gps');
+        setCarouselPage(0);
+        loadShopsForCoordinates(coords.latitude, coords.longitude);
+      },
+      (_err) => {
+        setRequestingGps(false);
+        // User denied or failed -> Fall back to IP detection
+        detectLocationByIp();
+      },
+      { timeout: 8000, enableHighAccuracy: true }
+    );
+  };
+
+  // Initial detection: Attempt GPS first, fall back seamlessly to IP detection
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = {
+            city: 'Your GPS Location',
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          };
+          setUserLocation(coords);
+          setLocationSource('gps');
+          loadShopsForCoordinates(coords.latitude, coords.longitude);
+        },
+        (_err) => {
+          // User denied permission or error -> Fall back to IP address detection!
+          detectLocationByIp();
+        },
+        { timeout: 5000 }
+      );
+    } else {
+      detectLocationByIp();
+    }
   }, []);
+
+  // Filter shops by selected city if applicable
+  const displayedCityShops = selectedCityFilter === 'All'
+    ? nearestShops
+    : nearestShops.filter((s) => s.city?.toLowerCase() === selectedCityFilter.toLowerCase());
+
+  const currentShops = displayedCityShops.length > 0 ? displayedCityShops : nearestShops;
+  const pageSize = 3;
+  const totalPages = Math.max(1, Math.ceil(currentShops.length / pageSize));
+  const visibleShops = currentShops.slice(carouselPage * pageSize, (carouselPage + 1) * pageSize);
+
+  const handlePrevPage = () => {
+    setCarouselPage((prev) => (prev - 1 + totalPages) % totalPages);
+  };
+
+  const handleNextPage = () => {
+    setCarouselPage((prev) => (prev + 1) % totalPages);
+  };
 
   // Fetch plans from backend API
   useEffect(() => {
@@ -76,55 +369,18 @@ export const LandingPage: React.FC = () => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
-      .then((data) => {
-        if (Array.isArray(data)) setPlans(data);
+      .then((resJson) => {
+        const list = Array.isArray(resJson)
+          ? resJson
+          : Array.isArray(resJson?.data)
+          ? resJson.data
+          : [];
+        if (list.length > 0) {
+          setPlans(list);
+        }
       })
       .catch((err) => {
-        console.warn('Could not fetch public plans, using fallback data', err);
-        setPlans([
-          {
-            id: 'plan-starter',
-            name: 'Solo Craftsman',
-            priceMonthly: 499,
-            priceYearly: 4990,
-            maxStaffAccounts: 2,
-            maxOrdersPerMonth: 50,
-            features: ['Digital Measurement Book', 'Basic Order Pipeline', 'Fabric Inventory', 'Customer SMS Notifications'],
-            isDefault: false,
-          },
-          {
-            id: 'plan-growth',
-            name: 'Boutique Studio',
-            priceMonthly: 1299,
-            priceYearly: 12990,
-            maxStaffAccounts: 6,
-            maxOrdersPerMonth: 200,
-            features: [
-              'Everything in Solo',
-              'Marketplace Storefront & Discovery',
-              'Advanced Fabric Ledger & Alerts',
-              'PDF Invoicing with GST calculation',
-              'Customer Self-Service Portal',
-            ],
-            isDefault: true,
-          },
-          {
-            id: 'plan-enterprise',
-            name: 'Multi-Branch Enterprise',
-            priceMonthly: 2999,
-            priceYearly: 29990,
-            maxStaffAccounts: 20,
-            maxOrdersPerMonth: 1000,
-            features: [
-              'Everything in Boutique',
-              'Unlimited Branches & Locations',
-              'Custom Tailoring Add-on Pricing',
-              'Dedicated Relationship Manager',
-              'Priority 24/7 Phone Support',
-            ],
-            isDefault: false,
-          },
-        ]);
+        console.warn('Could not fetch public plans, using default data', err);
       });
   }, []);
 
@@ -135,126 +391,7 @@ export const LandingPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-orange-500 selection:text-white relative overflow-x-hidden">
       {/* ── 1. NAVBAR ──────────────────────────────────────────────── */}
-      <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled
-            ? 'bg-white/95 backdrop-blur-md shadow-sm py-3 border-b border-slate-100'
-            : 'bg-white/80 backdrop-blur-sm py-4.5'
-        }`}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group">
-            <img
-              src={logoForLight}
-              alt="DarziDesk"
-              className="h-9 sm:h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
-            />
-          </Link>
-
-          {/* Desktop Nav Links */}
-          <nav className="hidden lg:flex items-center gap-8">
-            <a href="#hero" className="text-sm font-semibold text-slate-700 hover:text-orange-600 transition-colors">
-              Home
-            </a>
-            <a href="#for-owners" className="text-sm font-semibold text-slate-700 hover:text-orange-600 transition-colors">
-              For Shop Owners
-            </a>
-            <a href="#for-customers" className="text-sm font-semibold text-slate-700 hover:text-orange-600 transition-colors">
-              For Customers
-            </a>
-            <a href="#features" className="text-sm font-semibold text-slate-700 hover:text-orange-600 transition-colors">
-              Features
-            </a>
-            <a href="#pricing" className="text-sm font-semibold text-slate-700 hover:text-orange-600 transition-colors">
-              Pricing
-            </a>
-            <a href="#about" className="text-sm font-semibold text-slate-700 hover:text-orange-600 transition-colors">
-              About
-            </a>
-          </nav>
-
-          {/* Right Action Buttons */}
-          <div className="hidden sm:flex items-center gap-3.5">
-            <Link
-              to="/login"
-              className="px-5 py-2 text-sm font-bold text-slate-700 hover:text-orange-600 border border-slate-300 hover:border-orange-500 rounded-xl transition-all"
-            >
-              Login
-            </Link>
-            <Link
-              to="/login?mode=register"
-              className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 rounded-xl shadow-md hover:shadow-orange-500/25 transition-all transform hover:-translate-y-0.5"
-            >
-              Get Started
-            </Link>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="lg:hidden p-2 text-slate-700 hover:text-orange-600 rounded-lg focus:outline-none"
-            aria-label="Toggle menu"
-          >
-            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-        </div>
-
-        {/* Mobile Dropdown */}
-        {mobileOpen && (
-          <div className="lg:hidden bg-white border-b border-slate-200 px-6 py-4 space-y-3 shadow-xl animate-in slide-in-from-top-4 duration-200">
-            <a
-              href="#hero"
-              onClick={() => setMobileOpen(false)}
-              className="block py-2 text-sm font-semibold text-slate-800"
-            >
-              Home
-            </a>
-            <a
-              href="#for-owners"
-              onClick={() => setMobileOpen(false)}
-              className="block py-2 text-sm font-semibold text-slate-800"
-            >
-              For Shop Owners
-            </a>
-            <a
-              href="#for-customers"
-              onClick={() => setMobileOpen(false)}
-              className="block py-2 text-sm font-semibold text-slate-800"
-            >
-              For Customers
-            </a>
-            <a
-              href="#features"
-              onClick={() => setMobileOpen(false)}
-              className="block py-2 text-sm font-semibold text-slate-800"
-            >
-              Features
-            </a>
-            <a
-              href="#pricing"
-              onClick={() => setMobileOpen(false)}
-              className="block py-2 text-sm font-semibold text-slate-800"
-            >
-              Pricing
-            </a>
-            <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
-              <Link
-                to="/login"
-                className="w-full text-center py-2.5 text-sm font-bold border border-slate-300 rounded-xl text-slate-700"
-              >
-                Login
-              </Link>
-              <Link
-                to="/login?mode=register"
-                className="w-full text-center py-2.5 text-sm font-bold bg-orange-500 text-white rounded-xl shadow-md"
-              >
-                Get Started
-              </Link>
-            </div>
-          </div>
-        )}
-      </header>
+      <PublicNavbar />
 
       {/* ── 2. HERO SECTION ────────────────────────────────────────── */}
       <section id="hero" className="relative pt-28 pb-16 lg:pt-36 lg:pb-24 overflow-hidden">
@@ -417,20 +554,20 @@ export const LandingPage: React.FC = () => {
                     ))}
                   </ul>
 
-                  <div className="pt-4 flex items-center gap-4">
+                  <div className="pt-4 flex flex-wrap items-center gap-3">
                     <Link
                       to="/login?mode=register"
                       className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl shadow-md transition-all"
                     >
                       Start Free Trial
                     </Link>
-                    <a
-                      href="#features"
+                    <Link
+                      to="/for-owners"
                       className="text-sm font-bold text-slate-700 hover:text-orange-600 flex items-center gap-1.5 transition-colors"
                     >
-                      <span>See All Features</span>
+                      <span>Explore Shop Owner Suite</span>
                       <ArrowRight className="w-4 h-4" />
-                    </a>
+                    </Link>
                   </div>
                 </div>
 
@@ -483,12 +620,19 @@ export const LandingPage: React.FC = () => {
                     ))}
                   </ul>
 
-                  <div className="pt-4">
+                  <div className="pt-4 flex flex-wrap items-center gap-3">
                     <Link
                       to="/marketplace"
                       className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-md transition-all"
                     >
-                      <span>Find Tailors Near You</span>
+                      <span>Find Tailors</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                    <Link
+                      to="/for-customers"
+                      className="text-sm font-bold text-slate-700 hover:text-blue-600 flex items-center gap-1.5 transition-colors"
+                    >
+                      <span>Customer Tracking & Guide</span>
                       <ArrowRight className="w-4 h-4" />
                     </Link>
                   </div>
@@ -514,227 +658,287 @@ export const LandingPage: React.FC = () => {
       {/* ── 5. MARKETPLACE SHOWCASE SECTION ────────────────────────── */}
       <section className="py-20 bg-slate-50/80 border-y border-slate-100 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            {/* Left Info */}
-            <div className="lg:col-span-4 space-y-4 text-center lg:text-left">
+
+          {/* Section Header */}
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5 mb-8">
+            <div className="space-y-2">
               <span className="inline-block px-3 py-1 bg-orange-100 text-orange-800 text-xs font-bold uppercase tracking-wider rounded-md">
                 Marketplace
               </span>
               <h3 className="text-3xl sm:text-4xl font-extrabold text-slate-900 leading-tight">
-                Find Trusted Tailors in Your City
+                Nearest Tailors<br className="hidden sm:block" />{' '}
+                <span className="bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
+                  Just for You
+                </span>
               </h3>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Explore verified tailor shops, compare authentic ratings, view designer portfolios, and connect directly
-                with master craftsmen for your bespoke needs.
-              </p>
-              <div className="pt-2">
-                <Link
-                  to="/marketplace"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-orange-500/25 transition-all"
-                >
-                  <span>Explore Marketplace</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-
-              {/* Carousel navigation controls */}
-              <div className="hidden lg:flex items-center gap-2 pt-4">
-                <button
-                  aria-label="Previous shops"
-                  className="p-2.5 rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 transition-colors shadow-sm"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  aria-label="Next shops"
-                  className="p-2.5 rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 transition-colors shadow-sm"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
             </div>
 
-            {/* Right: 3 Tailor Shop Cards */}
+            {/* Location Source Badge + GPS CTA */}
+            <div className="flex flex-col gap-2 items-start sm:items-end shrink-0">
+              {locationSource === 'detecting' && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-full text-xs font-semibold text-slate-500 animate-pulse">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Detecting your location…</span>
+                </div>
+              )}
+              {locationSource === 'gps' && userLocation && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-bold text-emerald-700">
+                  <Navigation className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>GPS — Precise Location</span>
+                </div>
+              )}
+              {locationSource === 'ip' && userLocation && (
+                <div className="flex flex-col items-start sm:items-end gap-1.5">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full text-xs font-bold text-blue-700">
+                    <Globe className="w-3.5 h-3.5 text-blue-500" />
+                    <span>
+                      {userLocation.isFallback
+                        ? 'Estimated — Surat, India'
+                        : `Detected — ${userLocation.city}`}
+                    </span>
+                  </div>
+                  <button
+                    onClick={requestGpsLocation}
+                    disabled={requestingGps}
+                    className="text-xs font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1 transition-colors disabled:opacity-60"
+                  >
+                    {requestingGps ? (
+                      <><RefreshCw className="w-3 h-3 animate-spin" /> Requesting GPS…</>
+                    ) : (
+                      <><Navigation className="w-3 h-3" /> Enable GPS for exact distance</>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* City Filter Tabs */}
+          {!loadingShops && nearestShops.length > 0 && (
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+              {['All', ...Array.from(new Set(nearestShops.map((s) => s.city).filter(Boolean) as string[]))].map(
+                (city) => (
+                  <button
+                    key={city}
+                    onClick={() => { setSelectedCityFilter(city); setCarouselPage(0); }}
+                    className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
+                      selectedCityFilter === city
+                        ? 'bg-orange-500 text-white border-orange-500 shadow-md'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-orange-300 hover:text-orange-600'
+                    }`}
+                  >
+                    {city === 'All' ? 'All Cities' : city}
+                  </button>
+                )
+              )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Left Info Panel */}
+            <div className="lg:col-span-4 space-y-5 text-center lg:text-left lg:sticky lg:top-24">
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Explore verified tailor studios sorted nearest to you. Compare authentic ratings,
+                view portfolios, and connect directly with master craftsmen.
+              </p>
+
+              <Link
+                to="/marketplace"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-orange-500/25 transition-all transform hover:-translate-y-0.5"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Explore Full Marketplace</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+
+              {/* Carousel navigation controls */}
+              {!loadingShops && totalPages > 1 && (
+                <div className="flex items-center gap-3 pt-2 justify-center lg:justify-start">
+                  <button
+                    onClick={handlePrevPage}
+                    aria-label="Previous shops"
+                    className="p-2.5 rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-500 transition-colors shadow-sm"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <div className="flex gap-1.5">
+                    {Array.from({ length: totalPages }).map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCarouselPage(i)}
+                        className={`rounded-full transition-all ${
+                          i === carouselPage
+                            ? 'w-5 h-2 bg-orange-500'
+                            : 'w-2 h-2 bg-slate-300 hover:bg-orange-300'
+                        }`}
+                        aria-label={`Go to page ${i + 1}`}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleNextPage}
+                    aria-label="Next shops"
+                    className="p-2.5 rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-500 transition-colors shadow-sm"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs text-slate-400 font-medium ml-1">
+                    {carouselPage + 1} / {totalPages}
+                  </span>
+                </div>
+              )}
+
+              <Link
+                to="/marketplace"
+                className="hidden lg:flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-orange-600 transition-colors"
+              >
+                <Store className="w-3.5 h-3.5" />
+                View all verified tailors →
+              </Link>
+            </div>
+
+            {/* Right: Dynamic Shop Cards */}
             <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-5">
-              {/* Shop Card 1: Shree Ganesh Tailors */}
-              <ThreeDCard
-                maxTilt={6}
-                className="bg-white rounded-2xl border border-slate-200/80 shadow-md hover:shadow-xl transition-all overflow-hidden flex flex-col justify-between"
-              >
-                <div>
-                  <div className="relative h-44 overflow-hidden">
-                    <img
-                      src={shopGaneshImg}
-                      alt="Shree Ganesh Tailors"
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                    />
-                    <button
-                      onClick={() => toggleFavorite('shree-ganesh')}
-                      className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-colors"
-                      aria-label="Favorite Shree Ganesh Tailors"
-                    >
-                      <Heart
-                        className={`w-4 h-4 ${
-                          favorites['shree-ganesh'] ? 'fill-red-500 text-red-500' : 'text-slate-500'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                  <div className="p-4 space-y-2">
-                    <h4 className="text-base font-bold text-slate-900">Shree Ganesh Tailors</h4>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="flex items-center gap-1 font-bold text-amber-500">
-                        <Star className="w-3.5 h-3.5 fill-amber-400" />
-                        4.8
-                      </span>
-                      <span className="text-slate-400">(125 reviews)</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-slate-500">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">Vesu, Surat • 2.5 km</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
-                        Suits
-                      </span>
-                      <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
-                        Shirts
-                      </span>
-                      <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
-                        Kurti
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-4 pt-0">
-                  <Link
-                    to="/marketplace"
-                    className="w-full py-2 block text-center bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-colors"
+              {/* Shimmer loading skeleton */}
+              {loadingShops &&
+                [1, 2, 3].map((n) => (
+                  <div
+                    key={n}
+                    className="bg-white rounded-2xl border border-slate-200/80 shadow-md overflow-hidden animate-pulse"
                   >
-                    View Shop
-                  </Link>
-                </div>
-              </ThreeDCard>
+                    <div className="h-44 bg-slate-200" />
+                    <div className="p-4 space-y-3">
+                      <div className="h-4 bg-slate-200 rounded-lg w-3/4" />
+                      <div className="h-3 bg-slate-100 rounded-lg w-1/2" />
+                      <div className="h-3 bg-slate-100 rounded-lg w-2/3" />
+                      <div className="flex gap-1 pt-1">
+                        <div className="h-5 w-14 bg-slate-100 rounded-md" />
+                        <div className="h-5 w-12 bg-slate-100 rounded-md" />
+                      </div>
+                    </div>
+                    <div className="px-4 pb-4">
+                      <div className="h-8 bg-slate-200 rounded-xl" />
+                    </div>
+                  </div>
+                ))}
 
-              {/* Shop Card 2: Royal Stitch */}
-              <ThreeDCard
-                maxTilt={6}
-                className="bg-white rounded-2xl border border-slate-200/80 shadow-md hover:shadow-xl transition-all overflow-hidden flex flex-col justify-between"
-              >
-                <div>
-                  <div className="relative h-44 overflow-hidden">
-                    <img
-                      src={shopRoyalImg}
-                      alt="Royal Stitch Atelier"
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                    />
-                    <button
-                      onClick={() => toggleFavorite('royal-stitch')}
-                      className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-colors"
-                      aria-label="Favorite Royal Stitch"
-                    >
-                      <Heart
-                        className={`w-4 h-4 ${
-                          favorites['royal-stitch'] ? 'fill-red-500 text-red-500' : 'text-slate-500'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                  <div className="p-4 space-y-2">
-                    <h4 className="text-base font-bold text-slate-900">Royal Stitch</h4>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="flex items-center gap-1 font-bold text-amber-500">
-                        <Star className="w-3.5 h-3.5 fill-amber-400" />
-                        4.6
-                      </span>
-                      <span className="text-slate-400">(98 reviews)</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-slate-500">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">Adajan, Surat • 3.1 km</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
-                        Men's Wear
-                      </span>
-                      <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
-                        Blazers
-                      </span>
-                      <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
-                        Alterations
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-4 pt-0">
-                  <Link
-                    to="/marketplace"
-                    className="w-full py-2 block text-center bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-colors"
+              {/* Real dynamic shop cards */}
+              {!loadingShops &&
+                visibleShops.map((shop) => (
+                  <ThreeDCard
+                    key={shop.id}
+                    maxTilt={6}
+                    className="bg-white rounded-2xl border border-slate-200/80 shadow-md hover:shadow-xl transition-all overflow-hidden flex flex-col justify-between"
                   >
-                    View Shop
-                  </Link>
-                </div>
-              </ThreeDCard>
+                    <div>
+                      <div className="relative h-44 overflow-hidden">
+                        <img
+                          src={
+                            shop.coverPhotoUrl && !shop.coverPhotoUrl.startsWith('data:')
+                              ? shop.coverPhotoUrl
+                              : shopGaneshImg
+                          }
+                          alt={shop.name}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = shopGaneshImg;
+                          }}
+                        />
 
-              {/* Shop Card 3: Modern Fit Tailors */}
-              <ThreeDCard
-                maxTilt={6}
-                className="bg-white rounded-2xl border border-slate-200/80 shadow-md hover:shadow-xl transition-all overflow-hidden flex flex-col justify-between"
-              >
-                <div>
-                  <div className="relative h-44 overflow-hidden">
-                    <img
-                      src={shopModernImg}
-                      alt="Modern Fit Tailors"
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                    />
-                    <button
-                      onClick={() => toggleFavorite('modern-fit')}
-                      className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-colors"
-                      aria-label="Favorite Modern Fit Tailors"
-                    >
-                      <Heart
-                        className={`w-4 h-4 ${
-                          favorites['modern-fit'] ? 'fill-red-500 text-red-500' : 'text-slate-500'
-                        }`}
-                      />
-                    </button>
+                        {/* Distance badge */}
+                        {shop.distanceKm !== null && shop.distanceKm !== undefined && (
+                          <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            <Navigation className="w-2.5 h-2.5" />
+                            {shop.distanceKm < 1
+                              ? `${Math.round(shop.distanceKm * 1000)}m`
+                              : `${shop.distanceKm} km`}
+                          </div>
+                        )}
+
+                        {/* Verified badge */}
+                        <div className="absolute top-2.5 left-2.5 flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                          <Check className="w-2.5 h-2.5 stroke-[2.5]" />
+                          <span>Verified</span>
+                        </div>
+
+                        <button
+                          onClick={() => toggleFavorite(shop.id)}
+                          className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-colors"
+                          aria-label={`Favorite ${shop.name}`}
+                        >
+                          <Heart
+                            className={`w-4 h-4 ${
+                              favorites[shop.id] ? 'fill-red-500 text-red-500' : 'text-slate-500'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="p-4 space-y-2">
+                        <h4 className="text-sm font-bold text-slate-900 leading-snug line-clamp-1">
+                          {shop.name}
+                        </h4>
+
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="flex items-center gap-1 font-bold text-amber-500">
+                            <Star className="w-3.5 h-3.5 fill-amber-400" />
+                            {shop.avgRating !== null && shop.avgRating !== undefined
+                              ? shop.avgRating.toFixed(1)
+                              : '—'}
+                          </span>
+                          {shop.reviewCount > 0 && (
+                            <span className="text-slate-400">({shop.reviewCount} reviews)</span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1 text-xs text-slate-500">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="truncate">{shop.city}</span>
+                        </div>
+
+                        {shop.specialtyTags && shop.specialtyTags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-0.5">
+                            {shop.specialtyTags.slice(0, 3).map((tag) => (
+                              <span
+                                key={tag}
+                                className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-4 pt-0">
+                      <Link
+                        to={`/marketplace/${shop.id}`}
+                        className="w-full py-2 block text-center bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-colors"
+                      >
+                        View Shop
+                      </Link>
+                    </div>
+                  </ThreeDCard>
+                ))}
+
+              {/* Empty state (no shops returned for city filter) */}
+              {!loadingShops && visibleShops.length === 0 && (
+                <div className="sm:col-span-3 flex flex-col items-center justify-center py-16 text-center space-y-3">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
+                    <Store className="w-8 h-8 text-slate-400" />
                   </div>
-                  <div className="p-4 space-y-2">
-                    <h4 className="text-base font-bold text-slate-900">Modern Fit Tailors</h4>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="flex items-center gap-1 font-bold text-amber-500">
-                        <Star className="w-3.5 h-3.5 fill-amber-400" />
-                        4.9
-                      </span>
-                      <span className="text-slate-400">(170 reviews)</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-slate-500">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">City Light, Surat • 4.2 km</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
-                        Suits
-                      </span>
-                      <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
-                        Sherwani
-                      </span>
-                      <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
-                        Custom Design
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-4 pt-0">
-                  <Link
-                    to="/marketplace"
-                    className="w-full py-2 block text-center bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-colors"
+                  <p className="text-slate-500 text-sm font-semibold">
+                    No tailors found in {selectedCityFilter}.
+                  </p>
+                  <button
+                    onClick={() => setSelectedCityFilter('All')}
+                    className="text-orange-500 hover:text-orange-600 text-xs font-bold underline underline-offset-2"
                   >
-                    View Shop
-                  </Link>
+                    Show all cities
+                  </button>
                 </div>
-              </ThreeDCard>
+              )}
             </div>
           </div>
         </div>
@@ -800,6 +1004,17 @@ export const LandingPage: React.FC = () => {
               <h3 className="text-base font-bold text-slate-900 mb-1">Affordable Plans</h3>
               <p className="text-xs text-slate-500">Transparent pricing tailored for every workshop size.</p>
             </ThreeDCard>
+          </div>
+
+          {/* Deep-dive link to /features */}
+          <div className="mt-12 text-center">
+            <Link
+              to="/features"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-slate-300 hover:border-orange-500 rounded-2xl text-xs sm:text-sm font-bold text-slate-800 hover:text-orange-600 shadow-sm transition-all"
+            >
+              <span>Explore All 9 Modules & Feature Comparison Matrix</span>
+              <ArrowRight className="w-4 h-4 text-orange-500" />
+            </Link>
           </div>
         </div>
       </section>
@@ -994,21 +1209,25 @@ export const LandingPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left max-w-5xl mx-auto items-stretch">
             {plans.map((plan) => {
               const price = isYearly ? plan.priceYearly : plan.priceMonthly;
+              const isPopular = plan.name.toLowerCase() === 'pro';
+              const isEnterprise = plan.name.toLowerCase().includes('enterprise');
+
               return (
                 <ThreeDCard
                   key={plan.id}
                   className={`bg-white rounded-3xl p-8 border transition-all flex flex-col justify-between ${
-                    plan.isDefault
-                      ? 'border-2 border-orange-500 shadow-xl relative'
+                    isPopular
+                      ? 'border-2 border-orange-500 shadow-xl relative ring-4 ring-orange-500/10 scale-[1.02] md:-translate-y-1'
                       : 'border-slate-200/80 shadow-md hover:shadow-lg'
                   }`}
                 >
-                  {plan.isDefault && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-[11px] font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
-                      Most Popular
+                  {isPopular && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[11px] font-extrabold px-3.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1">
+                      <span>★</span>
+                      <span>Most Popular</span>
                     </div>
                   )}
 
@@ -1019,13 +1238,19 @@ export const LandingPage: React.FC = () => {
                         <span className="text-3xl sm:text-4xl font-black text-slate-900">
                           ₹{Number(price).toLocaleString('en-IN')}
                         </span>
-                        <span className="text-xs text-slate-500">/{isYearly ? 'year' : 'month'}</span>
+                        <span className="text-xs text-slate-500 font-semibold">/{isYearly ? 'year' : 'month'}</span>
                       </div>
                     </div>
 
-                    <div className="py-2 border-y border-slate-100 text-xs font-semibold text-slate-600 space-y-1">
-                      <div>Up to {plan.maxStaffAccounts} staff accounts</div>
-                      <div>Up to {plan.maxOrdersPerMonth} orders / month</div>
+                    <div className="py-2.5 border-y border-slate-100 text-xs font-semibold text-slate-600 space-y-1 bg-slate-50/50 -mx-4 px-4 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span>Staff Accounts:</span>
+                        <span className="font-bold text-slate-900">Up to {plan.maxStaffAccounts}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Monthly Orders:</span>
+                        <span className="font-bold text-slate-900">Up to {plan.maxOrdersPerMonth}</span>
+                      </div>
                     </div>
 
                     <ul className="space-y-2.5 text-xs sm:text-sm text-slate-600 font-medium">
@@ -1040,19 +1265,33 @@ export const LandingPage: React.FC = () => {
 
                   <div className="pt-6">
                     <Link
+                      id={`btn-plan-${plan.name.toLowerCase().replace(/\s+/g, '-')}`}
                       to={`/login?mode=register&plan=${encodeURIComponent(plan.name)}`}
                       className={`w-full py-3 block text-center rounded-xl font-bold text-sm transition-all ${
-                        plan.isDefault
-                          ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-md'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                        isPopular
+                          ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md hover:shadow-orange-500/30'
+                          : isEnterprise
+                          ? 'bg-slate-900 hover:bg-slate-800 text-white shadow-sm'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold'
                       }`}
                     >
-                      {plan.isDefault ? 'Start Free 14-Day Trial' : 'Select Plan'}
+                      {isPopular ? 'Start Free 14-Day Trial' : isEnterprise ? 'Contact Enterprise' : 'Get Started Free'}
                     </Link>
                   </div>
                 </ThreeDCard>
               );
             })}
+          </div>
+
+          {/* Deep-dive link to /pricing */}
+          <div className="mt-12 text-center">
+            <Link
+              to="/pricing"
+              className="inline-flex items-center gap-2 px-7 py-3.5 bg-white border border-slate-300 hover:border-orange-500 text-slate-800 hover:text-orange-600 font-bold text-xs sm:text-sm rounded-2xl shadow-sm transition-all"
+            >
+              <span>View Full 30+ Feature Comparison Matrix & Plan Finder</span>
+              <ArrowRight className="w-4 h-4 text-orange-500" />
+            </Link>
           </div>
         </div>
       </section>
@@ -1075,12 +1314,13 @@ export const LandingPage: React.FC = () => {
               <span>Get Started for Free</span>
               <ArrowRight className="w-4.5 h-4.5" />
             </Link>
-            <a
-              href="mailto:contact@darzidesk.com"
-              className="px-7 py-3.5 text-base font-bold text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 rounded-full shadow-sm transition-all"
+            <Link
+              to="/about"
+              className="px-7 py-3.5 text-base font-bold text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 rounded-full shadow-sm transition-all flex items-center gap-2"
             >
-              Talk to Our Team
-            </a>
+              <span>Read Our Full Story</span>
+              <ArrowRight className="w-4 h-4 text-slate-400" />
+            </Link>
           </div>
 
           <div className="pt-4 flex flex-wrap items-center justify-center gap-8 text-xs sm:text-sm font-semibold text-slate-600">
@@ -1107,101 +1347,7 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ── 11. FOOTER ─────────────────────────────────────────────── */}
-      <footer className="bg-white border-t border-slate-100 py-16 relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-10">
-            {/* Brand column */}
-            <div className="md:col-span-2 space-y-4">
-              <Link to="/" className="inline-block">
-                <img src={logoForLight} alt="DarziDesk" className="h-10 w-auto object-contain" />
-              </Link>
-              <p className="text-xs text-slate-500 max-w-sm">Tailor Shop Management & Marketplace</p>
-              <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
-                Empowering master tailors across India with intelligent digital books, fabric stock tracking, and public
-                storefront discovery.
-              </p>
-            </div>
-
-            {/* Product */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Product</h4>
-              <ul className="space-y-2 text-xs text-slate-600 font-medium">
-                <li>
-                  <a href="#features" className="hover:text-orange-600">
-                    Features
-                  </a>
-                </li>
-                <li>
-                  <a href="#pricing" className="hover:text-orange-600">
-                    Pricing
-                  </a>
-                </li>
-                <li>
-                  <a href="#for-owners" className="hover:text-orange-600">
-                    For Shop Owners
-                  </a>
-                </li>
-                <li>
-                  <a href="#for-customers" className="hover:text-orange-600">
-                    For Customers
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Company */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Company</h4>
-              <ul className="space-y-2 text-xs text-slate-600 font-medium">
-                <li>
-                  <a href="#about" className="hover:text-orange-600">
-                    About Us
-                  </a>
-                </li>
-                <li>
-                  <a href="mailto:contact@darzidesk.com" className="hover:text-orange-600">
-                    Contact Us
-                  </a>
-                </li>
-                <li>
-                  <span className="text-slate-400">Careers (Hiring!)</span>
-                </li>
-                <li>
-                  <span className="text-slate-400">Blog</span>
-                </li>
-              </ul>
-            </div>
-
-            {/* Support */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Support</h4>
-              <ul className="space-y-2 text-xs text-slate-600 font-medium">
-                <li>
-                  <span className="text-slate-400">Help Center</span>
-                </li>
-                <li>
-                  <span className="text-slate-400">Privacy Policy</span>
-                </li>
-                <li>
-                  <span className="text-slate-400">Terms of Service</span>
-                </li>
-                <li>
-                  <span className="text-slate-400">Refund Policy</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="mt-12 pt-8 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400 font-medium">
-            <div>© 2025 DarziDesk. All rights reserved.</div>
-            <div className="flex items-center gap-1">
-              <span>Made with</span>
-              <span className="text-red-500">❤️</span>
-              <span>in India</span>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <PublicFooter />
 
       {/* ── 12. INTERACTIVE 3D DEMO MODAL ──────────────────────────── */}
       {showDemoModal && (

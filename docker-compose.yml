@@ -1,10 +1,9 @@
-version: '3.9'
 
 services:
   postgres:
     image: postgres:16-alpine
     container_name: darzi_desk_postgres
-    restart: unless-stopped
+    restart: always
     environment:
       POSTGRES_USER: darzi
       POSTGRES_PASSWORD: darzi_secret
@@ -19,5 +18,23 @@ services:
       timeout: 5s
       retries: 5
 
+  openwa:
+    image: ghcr.io/rmyndharis/openwa:latest
+    container_name: darzi_desk_openwa
+    restart: unless-stopped
+    ports:
+      - '2785:2785'
+    environment:
+      - PORT=2785
+      - NODE_ENV=development
+      - API_MASTER_KEY=darzi_desk_whatsapp_secret_key_prod_2026_super_secure
+      - DATABASE_TYPE=sqlite
+      - DATABASE_SYNCHRONIZE=true
+      - AUTO_START_SESSIONS=true
+    volumes:
+      - openwa_data:/app/data
+
 volumes:
   postgres_data:
+  openwa_data:
+

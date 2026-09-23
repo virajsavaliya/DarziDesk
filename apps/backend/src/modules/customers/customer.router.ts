@@ -136,8 +136,8 @@ staffCustomersRouter.get('/:id', async (req: Request, res: Response, next: NextF
   }
 });
 
-// PATCH /api/customers/:id — edit customer details
-staffCustomersRouter.patch('/:id', async (req: Request, res: Response, next: NextFunction) => {
+// PATCH / PUT /api/customers/:id — edit customer details
+const handleUpdateCustomer = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const tenantId = res.locals.tenantId as string;
     const data = UpdateCustomerSchema.parse(req.body);
@@ -146,7 +146,9 @@ staffCustomersRouter.patch('/:id', async (req: Request, res: Response, next: Nex
   } catch (err) {
     next(err);
   }
-});
+};
+staffCustomersRouter.patch('/:id', handleUpdateCustomer);
+staffCustomersRouter.put('/:id', handleUpdateCustomer);
 
 // Mount staff customer management under root /api/customers
 customersRouter.use('/', staffCustomersRouter);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, ArrowRight } from 'lucide-react';
+import { Search, Filter, ArrowRight, PlusCircle } from 'lucide-react';
 import type { Order, OrderStatus } from '../../types/dashboard';
 import { STATUS_CONFIG } from '../../types/dashboard';
 import { SectionCard } from '../common/SectionCard';
@@ -7,6 +7,8 @@ import { StatusBadge } from '../common/StatusBadge';
 import { DataTable, type TableColumn } from '../common/DataTable';
 import { Drawer } from '../common/Drawer';
 import { OrderDetailView } from './OrderDetailView';
+import { NewOrderDrawer } from './NewOrderDrawer';
+import { OrderCard } from './OrderCard';
 
 const ALL_STATUSES: OrderStatus[] = [
   'PLACED',
@@ -29,6 +31,7 @@ export const OwnerOrdersView: React.FC<OwnerOrdersViewProps> = ({ authToken }) =
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const fetchOrders = useCallback(async () => {
@@ -151,9 +154,18 @@ export const OwnerOrdersView: React.FC<OwnerOrdersViewProps> = ({ authToken }) =
       <SectionCard
         title={`All Orders ${filtered.length > 0 ? `(${filtered.length})` : ''}`}
         action={
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-text-muted" />
-            <span className="text-xs text-text-muted">Filter</span>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setIsNewOrderOpen(true)}
+              className="flex items-center gap-1.5 bg-accent hover:bg-accent/90 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-all shadow-sm min-h-[36px]"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>New Order</span>
+            </button>
+            <div className="hidden sm:flex items-center gap-1.5 text-text-muted text-xs">
+              <Filter className="w-3.5 h-3.5" />
+              <span>Filter</span>
+            </div>
           </div>
         }
       >
@@ -170,25 +182,25 @@ export const OwnerOrdersView: React.FC<OwnerOrdersViewProps> = ({ authToken }) =
             />
           </div>
 
-          {/* Status pills */}
-          <div className="flex gap-2 flex-wrap">
+          {/* Status pills (touch-friendly swipeable on mobile) */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
             <button
               onClick={() => setStatusFilter('ALL')}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold min-h-[32px] transition-colors ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold min-h-[36px] whitespace-nowrap transition-colors shrink-0 ${
                 statusFilter === 'ALL'
-                  ? 'bg-brand text-white'
+                  ? 'bg-brand text-white shadow-xs'
                   : 'bg-surface-muted text-text-secondary hover:bg-border'
               }`}
             >
-              All
+              All Orders
             </button>
             {ALL_STATUSES.map((s) => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(statusFilter === s ? 'ALL' : s)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold min-h-[32px] transition-colors ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold min-h-[36px] whitespace-nowrap transition-colors shrink-0 ${
                   statusFilter === s
-                    ? 'bg-brand text-white'
+                    ? 'bg-brand text-white shadow-xs'
                     : 'bg-surface-muted text-text-secondary hover:bg-border'
                 }`}
               >
@@ -208,8 +220,13 @@ export const OwnerOrdersView: React.FC<OwnerOrdersViewProps> = ({ authToken }) =
               : 'No orders yet'
           }
           getRowKey={(o) => o.id}
+          onRowClick={(o) => setSelectedOrder(o)}
+          mobileCardRender={(o) => (
+            <OrderCard order={o} onClick={() => setSelectedOrder(o)} />
+          )}
         />
       </SectionCard>
+
 
       {/* Order Detail Drawer */}
       <Drawer
@@ -240,6 +257,17 @@ export const OwnerOrdersView: React.FC<OwnerOrdersViewProps> = ({ authToken }) =
           />
         )}
       </Drawer>
+
+      {/* New Order Creation Drawer */}
+      <NewOrderDrawer
+        isOpen={isNewOrderOpen}
+        onClose={() => setIsNewOrderOpen(false)}
+        authToken={authToken}
+        onOrderCreated={(newOrder) => {
+          setRefreshTrigger((p) => p + 1);
+          setSelectedOrder(newOrder);
+        }}
+      />
     </div>
   );
 };

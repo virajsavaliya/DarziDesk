@@ -1,3 +1,4 @@
+import { CheckCircle2, Scissors } from 'lucide-react';
 import type { DailySummary } from '../../types/dashboard';
 
 interface DailySummaryWidgetProps {
@@ -38,8 +39,8 @@ export function DailySummaryWidget({ summary, loading }: DailySummaryWidgetProps
             Delivered in {summary?.timezone || 'Shop Timezone'}
           </span>
         </div>
-        <div className="w-12 h-12 rounded-xl bg-success-light text-success flex items-center justify-center font-bold text-xl">
-          ✓
+        <div className="w-12 h-12 rounded-xl bg-success-light text-success flex items-center justify-center">
+          <CheckCircle2 className="w-6 h-6" />
         </div>
       </div>
 
@@ -56,8 +57,8 @@ export function DailySummaryWidget({ summary, loading }: DailySummaryWidgetProps
             Active in workshop queue
           </span>
         </div>
-        <div className="w-12 h-12 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-bold text-xl">
-          ✂
+        <div className="w-12 h-12 rounded-xl bg-brand/10 text-brand flex items-center justify-center">
+          <Scissors className="w-6 h-6" />
         </div>
       </div>
 

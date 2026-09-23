@@ -54,7 +54,35 @@ export async function quickCreateWalkInCustomer(
   tenantId: string,
   data: CreateWalkInCustomerInput,
 ): Promise<CustomerWithLink> {
-  return withTenantContext(tenantId, async (tx) => {
+  let targetTenantId = tenantId;
+
+  if (!targetTenantId || targetTenantId === 'null' || targetTenantId === 'undefined') {
+    const defaultTenant = await prisma.tenant.findFirst({
+      where: { isActive: true },
+      select: { id: true },
+    });
+    if (!defaultTenant) {
+      throw new NotFoundError('No active shop found. Please create a shop first.');
+    }
+    targetTenantId = defaultTenant.id;
+  } else {
+    const exists = await prisma.tenant.findUnique({
+      where: { id: targetTenantId },
+      select: { id: true },
+    });
+    if (!exists) {
+      const defaultTenant = await prisma.tenant.findFirst({
+        where: { isActive: true },
+        select: { id: true },
+      });
+      if (!defaultTenant) {
+        throw new NotFoundError('Shop not found or was removed. Please re-login.');
+      }
+      targetTenantId = defaultTenant.id;
+    }
+  }
+
+  return withTenantContext(targetTenantId, async (tx) => {
     // 1. Check if customer with this phone already exists globally
     let customer = await tx.customer.findUnique({
       where: { phone: data.phone },
@@ -86,7 +114,7 @@ export async function quickCreateWalkInCustomer(
     let link = await tx.shopCustomerLink.findUnique({
       where: {
         tenantId_customerId: {
-          tenantId,
+          tenantId: targetTenantId,
           customerId: customer.id,
         },
       },
@@ -95,7 +123,7 @@ export async function quickCreateWalkInCustomer(
     if (!link) {
       link = await tx.shopCustomerLink.create({
         data: {
-          tenantId,
+          tenantId: targetTenantId,
           customerId: customer.id,
           firstInteractionSource: data.firstInteractionSource || InteractionSource.WALK_IN,
         },
@@ -118,9 +146,17 @@ export async function listTenantCustomers(
   tenantId: string,
   query: SearchCustomersQueryInput,
 ): Promise<{ customers: CustomerWithLink[]; total: number }> {
-  return withTenantContext(tenantId, async (tx) => {
+  let targetTenantId = tenantId;
+  if (!targetTenantId || targetTenantId === 'null' || targetTenantId === 'undefined') {
+    const defaultTenant = await prisma.tenant.findFirst({
+      where: { isActive: true },
+      select: { id: true },
+    });
+    targetTenantId = defaultTenant?.id ?? '';
+  }
+  return withTenantContext(targetTenantId, async (tx) => {
     const whereClause: Prisma.ShopCustomerLinkWhereInput = {
-      tenantId,
+      tenantId: targetTenantId,
     };
 
     if (query.q && query.q.trim().length > 0) {
@@ -238,14 +274,20 @@ export async function updateTenantCustomer(
       }
     }
 
+    const updateData: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+      email?: string | null;
+    } = {};
+    if (data.firstName !== undefined) updateData.firstName = data.firstName;
+    if (data.lastName !== undefined) updateData.lastName = data.lastName;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.email !== undefined) updateData.email = data.email;
+
     const updated = await tx.customer.update({
       where: { id: customerId },
-      data: {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        phone: data.phone,
-        email: data.email,
-      },
+      data: updateData,
     });
 
     return toSafeCustomer(updated);

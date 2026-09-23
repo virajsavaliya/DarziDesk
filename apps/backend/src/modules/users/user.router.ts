@@ -21,6 +21,8 @@ import {
   getStaffMember,
   createStaffMember,
   setStaffActive,
+  updateStaffRole,
+  deleteStaffMember,
 } from './user.service';
 import { getStaffById } from '../auth/auth.service';
 import type { StaffJwtPayload } from '../../lib/jwt';
@@ -47,15 +49,16 @@ usersRouter.get(
 );
 
 // ---------------------------------------------------------------------------
-// GET /api/users — list all staff in the shop (owner only)
+// GET /api/users — list all staff in the shop
 // ---------------------------------------------------------------------------
 usersRouter.get(
   '/',
-  authorize(UserRole.SHOP_OWNER, UserRole.SUPER_ADMIN),
-  async (_req: Request, res: Response, next: NextFunction) => {
+  authorize(UserRole.SHOP_OWNER, UserRole.STAFF, UserRole.SUPER_ADMIN),
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = res.locals.tenantId as string;
-      const users = await listStaff(tenantId);
+      const includeInactive = req.query.includeInactive === 'true';
+      const users = await listStaff(tenantId, { includeInactive });
       res.status(200).json({ data: users });
     } catch (err) {
       next(err);
@@ -110,6 +113,47 @@ usersRouter.patch(
       const data = SetActiveSchema.parse(req.body);
       const user = await setStaffActive(req.params.userId, tenantId, data);
       res.status(200).json({ data: user });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// PATCH /api/users/:userId/role — update role (owner only)
+// ---------------------------------------------------------------------------
+usersRouter.patch(
+  '/:userId/role',
+  authorize(UserRole.SHOP_OWNER),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = res.locals.tenantId as string;
+      const callerId = (res.locals.auth as StaffJwtPayload).sub;
+      const { role } = req.body;
+      if (role !== UserRole.STAFF && role !== UserRole.SHOP_OWNER) {
+        res.status(400).json({ error: 'Role must be STAFF or SHOP_OWNER' });
+        return;
+      }
+      const user = await updateStaffRole(req.params.userId, tenantId, role, callerId);
+      res.status(200).json({ data: user });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// DELETE /api/users/:userId — delete / remove staff member (owner only)
+// ---------------------------------------------------------------------------
+usersRouter.delete(
+  '/:userId',
+  authorize(UserRole.SHOP_OWNER),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = res.locals.tenantId as string;
+      const callerId = (res.locals.auth as StaffJwtPayload).sub;
+      const result = await deleteStaffMember(req.params.userId, tenantId, callerId);
+      res.status(200).json({ data: result, message: 'Staff member removed successfully' });
     } catch (err) {
       next(err);
     }

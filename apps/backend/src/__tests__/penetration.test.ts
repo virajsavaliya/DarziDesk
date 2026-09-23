@@ -30,11 +30,15 @@ describe('Phase 12: Cross-Cutting Penetration-Style Re-Verification', () => {
 
   afterEach(async () => {
     await testPrisma.notificationLog.deleteMany();
+    await testPrisma.invoicePayment.deleteMany();
     await testPrisma.invoice.deleteMany();
+    await testPrisma.orderStatusLog.deleteMany();
     await testPrisma.order.deleteMany();
     await testPrisma.measurementProfileVersion.deleteMany();
     await testPrisma.measurementProfile.deleteMany();
+    await testPrisma.fabricStockTransaction.deleteMany();
     await testPrisma.fabric.deleteMany();
+    await testPrisma.shopCustomerLink.deleteMany();
     await testPrisma.customer.deleteMany();
     await testPrisma.user.deleteMany();
     await testPrisma.tenantSubscription.deleteMany();

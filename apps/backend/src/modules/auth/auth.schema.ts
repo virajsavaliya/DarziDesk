@@ -116,6 +116,7 @@ export const CreateStaffSchema = z.object({
   password,
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
+  role: z.enum(['STAFF', 'SHOP_OWNER']).optional(),
   // tenantId is intentionally absent — it always comes from the JWT
 });
 export type CreateStaffInput = z.infer<typeof CreateStaffSchema>;

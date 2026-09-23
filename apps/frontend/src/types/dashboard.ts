@@ -24,6 +24,9 @@ export interface Fabric {
   color: string;
   type: string;
   pricePerMeter: string;
+  availableMeters?: string;
+  reservedMeters?: string;
+  lowStockThreshold?: string;
 }
 
 export interface MeasurementVersion {
@@ -41,10 +44,20 @@ export interface MeasurementProfile {
   id: string;
   tenantId?: string;
   customerId?: string;
+  customer?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    email?: string | null;
+  };
   name: string;
   garmentType: GarmentType;
   notes?: string | null;
   versions?: MeasurementVersion[];
+  currentVersion?: MeasurementVersion | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AssignedStaff {

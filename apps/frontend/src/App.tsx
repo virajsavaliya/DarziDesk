@@ -28,6 +28,7 @@ import {
   useNavigate,
   useLocation,
   useParams,
+  useOutletContext,
 } from 'react-router-dom';
 import type {
   Order,
@@ -38,9 +39,22 @@ import type {
   CustomerPortalOrder,
 } from './types/dashboard';
 import { AppShell } from './components/layout/AppShell';
+import { useSubscription } from './hooks/useSubscription';
+import { LockedFeaturePaywall } from './components/common/LockedFeaturePaywall';
+import { UpgradePlanModal } from './components/dashboard/UpgradePlanModal';
 
-// ── Landing Page ──────────────────────────────────────────────────────────────
+// ── Landing & Public Pages ───────────────────────────────────────────────────
 import { LandingPage } from './components/landing/LandingPage';
+import { ForOwnersPage } from './components/landing/ForOwnersPage';
+import { ForCustomersPage } from './components/landing/ForCustomersPage';
+import { FeaturesPage } from './components/landing/FeaturesPage';
+import { PricingPage } from './components/landing/PricingPage';
+import { AboutPage } from './components/landing/AboutPage';
+import { PublicMarketplacePage } from './components/landing/PublicMarketplacePage';
+import { PublicNavbar } from './components/landing/PublicNavbar';
+import { PublicFooter } from './components/landing/PublicFooter';
+import { ScrollToTop } from './components/common/ScrollToTop';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { LoginPage, getStoredAuth, setStoredAuth, clearStoredAuth, decodeJwtPayload } from './components/landing/LoginPage';
 
 // ── Customer Portal Views ───────────────────────────────────────────────────
@@ -54,6 +68,7 @@ import { CustomerMeasurementsView } from './components/portal/CustomerMeasuremen
 import { StaffKpiCards } from './components/dashboard/StaffKpiCards';
 import { StaffWorkQueue } from './components/dashboard/StaffWorkQueue';
 import { CustomerDirectoryView } from './components/dashboard/CustomerDirectoryView';
+import { MeasurementsDirectoryView } from './components/dashboard/MeasurementsDirectoryView';
 import { Drawer } from './components/common/Drawer';
 import { OrderDetailView } from './components/dashboard/OrderDetailView';
 import { StatusBadge } from './components/common/StatusBadge';
@@ -65,7 +80,9 @@ import { OwnerFabricView } from './components/dashboard/OwnerFabricView';
 import { OwnerStaffView } from './components/dashboard/OwnerStaffView';
 import { OwnerInvoicesView } from './components/invoices/OwnerInvoicesView';
 import { ProductsAndServicesView } from './components/dashboard/ProductsAndServicesView';
-import { PlaceholderView } from './components/dashboard/PlaceholderView';
+import { OwnerSettingsView } from './components/dashboard/OwnerSettingsView';
+import { OwnerReportsView } from './components/dashboard/OwnerReportsView';
+import { NewOrderDrawer } from './components/dashboard/NewOrderDrawer';
 
 // ── Marketplace & Administration Views ───────────────────────────────────────
 import { MarketplaceDiscoveryView } from './components/marketplace/MarketplaceDiscoveryView';
@@ -75,6 +92,12 @@ import { SuperAdminModerationView } from './components/marketplace/SuperAdminMod
 import { SuperAdminTenantsView } from './components/admin/SuperAdminTenantsView';
 import { SuperAdminRevenueView } from './components/admin/SuperAdminRevenueView';
 import { SuperAdminPlansView } from './components/admin/SuperAdminPlansView';
+import { SupportModeBanner } from './components/admin/SupportModeBanner';
+import { SuperAdminDashboardView } from './components/admin/SuperAdminDashboardView';
+import { SuperAdminSupportSessionsView } from './components/admin/SuperAdminSupportSessionsView';
+import { SuperAdminAuditLogsView } from './components/admin/SuperAdminAuditLogsView';
+import { SuperAdminFeatureFlagsView } from './components/admin/SuperAdminFeatureFlagsView';
+import { SuperAdminOperationsView } from './components/admin/SuperAdminOperationsView';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth helpers
@@ -169,7 +192,7 @@ async function validateToken(user: DemoUser): Promise<DemoUser | null> {
 /** Map role → default redirect URL after login */
 export function defaultRouteForRole(role: string): string {
   switch (role) {
-    case 'SUPER_ADMIN': return '/admin/tenants';
+    case 'SUPER_ADMIN': return '/admin/dashboard';
     case 'SHOP_OWNER':  return '/dashboard/home';
     case 'STAFF':       return '/dashboard/tasks';
     case 'CUSTOMER':    return '/portal/marketplace';
@@ -242,21 +265,60 @@ function MarketplaceStorefrontRoute({ onStartOrder }: { onStartOrder?: (tenantId
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface DashboardShellProps {
-  currentUser: DemoUser;
+  currentUser: DemoUser | null;
   demoUsers: DemoUser[];
   onUserChange: (u: DemoUser) => void;
   onLogout: () => void;
+}
+
+function OwnerHomeRouteWrapper({ authToken, currentUser }: { authToken: string; currentUser: DemoUser | null }) {
+  const navigate = useNavigate();
+  const context = useOutletContext<{
+    subscription: any;
+    openUpgradeModal: (plan?: string) => void;
+  }>();
+
+  if (!currentUser) return null;
+
+  return (
+    <OwnerDashboardView
+      authToken={authToken}
+      currentUser={currentUser}
+      planName={context?.subscription?.plan?.name ?? 'Basic'}
+      lockedCount={context?.subscription?.lockedFeatures?.length ?? 0}
+      isTrial={context?.subscription?.isTrial}
+      trialDaysRemaining={context?.subscription?.trialDaysRemaining}
+      onOpenUpgrade={() => context?.openUpgradeModal?.('Pro')}
+      onNavigate={(id) =>
+        navigate(id.startsWith('/') ? id : `/dashboard/${id === 'dashboard' ? 'home' : id}`)
+      }
+    />
+  );
 }
 
 function DashboardShell({ currentUser, demoUsers, onUserChange, onLogout }: DashboardShellProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
+  if (!currentUser) return null;
+
   const isOwner = currentUser.role === 'SHOP_OWNER';
+
+  const {
+    subscription,
+    isFeatureLocked,
+    upgradePlan,
+    isUpgradeModalOpen,
+    openUpgradeModal,
+    closeUpgradeModal,
+    targetUpgradePlan,
+  } = useSubscription(currentUser?.token, isOwner);
 
   // Derive active nav id from the URL path segment
   const pathSegment = location.pathname.split('/dashboard/')[1]?.split('/')[0] ?? '';
   const activeNavId = (pathSegment === 'home' ? 'dashboard' : pathSegment) || (isOwner ? 'dashboard' : 'tasks');
+
+  const isCurrentViewLocked = isOwner && isFeatureLocked(activeNavId);
 
   const getPageTitle = () => {
     switch (activeNavId) {
@@ -305,28 +367,55 @@ function DashboardShell({ currentUser, demoUsers, onUserChange, onLogout }: Dash
   };
 
   return (
-    <AppShell
-      pageTitle={getPageTitle()}
-      breadcrumb={isOwner ? 'DarziDesk Owner' : 'DarziDesk Workshop'}
-      activeNavId={activeNavId}
-      onNavigate={handleNavigate}
-      currentUser={currentUser}
-      onSelectPersona={(u) => {
-        onUserChange(u);
-        navigate(defaultRouteForRole(u.role));
-      }}
-      demoUsers={demoUsers}
-      onLogout={onLogout}
-    >
-      <Outlet />
-    </AppShell>
+    <>
+      <AppShell
+        pageTitle={getPageTitle()}
+        breadcrumb={isOwner ? 'DarziDesk Owner' : 'DarziDesk Workshop'}
+        activeNavId={activeNavId}
+        onNavigate={handleNavigate}
+        currentUser={currentUser}
+        onSelectPersona={(u) => {
+          onUserChange(u);
+          navigate(defaultRouteForRole(u.role));
+        }}
+        demoUsers={demoUsers}
+        onLogout={onLogout}
+        lockedFeatures={subscription?.lockedFeatures}
+        planName={subscription?.plan.name}
+        isTrial={subscription?.isTrial}
+        trialDaysRemaining={subscription?.trialDaysRemaining}
+        onOpenUpgrade={() => openUpgradeModal('Pro')}
+      >
+        {isCurrentViewLocked ? (
+          <LockedFeaturePaywall
+            featureId={activeNavId}
+            onUpgrade={() => openUpgradeModal('Pro')}
+          />
+        ) : (
+          <Outlet context={{ subscription, openUpgradeModal }} />
+        )}
+      </AppShell>
+
+      <UpgradePlanModal
+        isOpen={isUpgradeModalOpen}
+        onClose={closeUpgradeModal}
+        currentPlanName={subscription?.plan.name ?? 'Basic'}
+        initialSelectedPlan={targetUpgradePlan}
+        onUpgrade={async (planName, billingCycle, paymentMethod) => {
+          const res = await upgradePlan(planName, billingCycle, paymentMethod);
+          return Boolean(res);
+        }}
+      />
+    </>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Staff Work Queue page (used inside dashboard routes for STAFF role)
 // ─────────────────────────────────────────────────────────────────────────────
-function StaffTasksPage({ currentUser }: { currentUser: DemoUser }) {
+function StaffTasksPage({ currentUser }: { currentUser: DemoUser | null }) {
+  if (!currentUser) return null;
+
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | 'ALL'>('ALL');
   const [globalSearch, setGlobalSearch] = useState('');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -335,6 +424,7 @@ function StaffTasksPage({ currentUser }: { currentUser: DemoUser }) {
   const [summary, setSummary] = useState<DailySummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const fetchOrders = useCallback(async (token: string, status: OrderStatus | 'ALL') => {
@@ -370,14 +460,31 @@ function StaffTasksPage({ currentUser }: { currentUser: DemoUser }) {
   }, []);
 
   useEffect(() => {
+    if (!currentUser?.token) return;
     fetchOrders(currentUser.token, selectedStatus);
     fetchSummary(currentUser.token);
-  }, [currentUser.token, selectedStatus, refreshTrigger, fetchOrders, fetchSummary]);
+  }, [currentUser?.token, selectedStatus, refreshTrigger, fetchOrders, fetchSummary]);
 
   const handleOrderUpdated = () => setRefreshTrigger((prev) => prev + 1);
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800 tracking-tight">Tailoring Workshop</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Assigned work queue and order progress</p>
+        </div>
+        <button
+          onClick={() => setIsNewOrderOpen(true)}
+          className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-sm transition-all cursor-pointer"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+          </svg>
+          New Order
+        </button>
+      </div>
+
       <StaffKpiCards
         orders={orders}
         summary={summary}
@@ -429,6 +536,17 @@ function StaffTasksPage({ currentUser }: { currentUser: DemoUser }) {
           />
         )}
       </Drawer>
+
+      {/* New Order Drawer */}
+      <NewOrderDrawer
+        isOpen={isNewOrderOpen}
+        onClose={() => setIsNewOrderOpen(false)}
+        onOrderCreated={() => {
+          handleOrderUpdated();
+          setIsNewOrderOpen(false);
+        }}
+        authToken={currentUser.token}
+      />
     </div>
   );
 }
@@ -441,6 +559,8 @@ function PortalShell({ currentUser, demoUsers, onUserChange, onLogout }: Dashboa
   const navigate = useNavigate();
   const [selectedPortalOrder, setSelectedPortalOrder] = useState<CustomerPortalOrder | null>(null);
   const [selectedCatalogTenantId, setSelectedCatalogTenantId] = useState<string | null>(null);
+
+  if (!currentUser) return null;
 
   const pathSegment = location.pathname.split('/portal/')[1]?.split('/')[0] ?? 'marketplace';
   const activeNavId = pathSegment || 'marketplace';
@@ -560,6 +680,8 @@ function AdminShell({ currentUser, demoUsers, onUserChange, onLogout }: Dashboar
   const navigate = useNavigate();
   const [selectedMarketplaceShopId, setSelectedMarketplaceShopId] = useState<string | null>(null);
 
+  if (!currentUser) return null;
+
   const pathSegment = location.pathname.split('/admin/')[1]?.split('/')[0] ?? '';
   const activeNavId = pathSegment
     ? (pathSegment === 'moderation' || pathSegment === 'marketplace' ? pathSegment : `admin-${pathSegment}`)
@@ -567,9 +689,14 @@ function AdminShell({ currentUser, demoUsers, onUserChange, onLogout }: Dashboar
 
   const getPageTitle = () => {
     switch (activeNavId) {
+      case 'admin-dashboard': return 'Platform Dashboard';
       case 'admin-tenants':  return 'Tenants & Shops';
       case 'admin-revenue':  return 'Revenue & Growth';
       case 'admin-plans':    return 'Subscription Plans';
+      case 'admin-support-sessions': return 'Support Sessions';
+      case 'admin-audit':    return 'Platform Audit Logs';
+      case 'admin-feature-flags': return 'Feature Flags & Overrides';
+      case 'admin-operations': return 'System Operations & Health';
       case 'admin-moderation': return 'Marketplace Moderation';
       case 'admin-marketplace': return selectedMarketplaceShopId ? 'Shop Storefront' : 'Public Directory';
       default:               return 'Platform Administration';
@@ -584,9 +711,14 @@ function AdminShell({ currentUser, demoUsers, onUserChange, onLogout }: Dashboar
     }
     const path = target.startsWith('admin-') ? `/admin/${target.slice(6)}` : `/admin/${target}`;
     const idToPath: Record<string, string> = {
+      'admin-dashboard':  '/admin/dashboard',
       'admin-tenants':    '/admin/tenants',
       'admin-revenue':    '/admin/revenue',
       'admin-plans':      '/admin/plans',
+      'admin-support-sessions': '/admin/support-sessions',
+      'admin-audit':      '/admin/audit',
+      'admin-feature-flags': '/admin/feature-flags',
+      'admin-operations': '/admin/operations',
       'moderation':       '/admin/moderation',
       'marketplace':      '/admin/marketplace',
     };
@@ -606,10 +738,15 @@ function AdminShell({ currentUser, demoUsers, onUserChange, onLogout }: Dashboar
       onLogout={onLogout}
     >
       <Routes>
-        <Route index element={<Navigate to="/admin/tenants" replace />} />
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="dashboard" element={<SuperAdminDashboardView authToken={currentUser.token} onNavigate={handleNavigate} />} />
         <Route path="tenants" element={<SuperAdminTenantsView authToken={currentUser.token} />} />
         <Route path="revenue" element={<SuperAdminRevenueView authToken={currentUser.token} />} />
         <Route path="plans" element={<SuperAdminPlansView authToken={currentUser.token} />} />
+        <Route path="support-sessions" element={<SuperAdminSupportSessionsView authToken={currentUser.token} />} />
+        <Route path="audit" element={<SuperAdminAuditLogsView authToken={currentUser.token} />} />
+        <Route path="feature-flags" element={<SuperAdminFeatureFlagsView authToken={currentUser.token} />} />
+        <Route path="operations" element={<SuperAdminOperationsView authToken={currentUser.token} />} />
         <Route
           path="moderation"
           element={
@@ -636,7 +773,7 @@ function AdminShell({ currentUser, demoUsers, onUserChange, onLogout }: Dashboar
             )
           }
         />
-        <Route path="*" element={<Navigate to="/admin/tenants" replace />} />
+        <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
       </Routes>
     </AppShell>
   );
@@ -645,33 +782,46 @@ function AdminShell({ currentUser, demoUsers, onUserChange, onLogout }: Dashboar
 // ─────────────────────────────────────────────────────────────────────────────
 // Public Marketplace route (unauthenticated)
 // ─────────────────────────────────────────────────────────────────────────────
-function PublicMarketplaceRoute() {
+function PublicMarketplaceStorefrontRoute() {
+  const { shopId } = useParams<{ shopId: string }>();
   const navigate = useNavigate();
+  if (!shopId) return <Navigate to="/marketplace" replace />;
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-6 pt-8 pb-16">
-        <Routes>
-          <Route
-            index
-            element={
-              <MarketplaceDiscoveryView
-                onSelectShop={(shop) => navigate(`/marketplace/${shop.id}`)}
-              />
-            }
-          />
-          <Route
-            path=":shopId"
-            element={
-              <MarketplaceStorefrontRoute
-                onStartOrder={() => { window.location.href = '/login'; }}
-              />
-            }
-          />
-        </Routes>
-      </div>
+    <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-orange-500 selection:text-white relative overflow-x-hidden flex flex-col justify-between">
+      <PublicNavbar />
+      <main className="flex-1 pt-28 pb-16 lg:pt-32 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+        <PublicShopStorefrontView
+          shopId={shopId}
+          onBack={() => navigate('/marketplace')}
+          onStartOrder={(tenantId) => navigate(`/login?mode=register&shopId=${tenantId}`)}
+        />
+      </main>
+      <PublicFooter />
     </div>
   );
 }
+
+function PublicMarketplaceRoute() {
+  const navigate = useNavigate();
+  return (
+    <Routes>
+      <Route
+        index
+        element={
+          <PublicMarketplacePage
+            onSelectShop={(shop) => navigate(`/marketplace/${shop.id}`)}
+          />
+        }
+      />
+      <Route
+        path=":shopId"
+        element={<PublicMarketplaceStorefrontRoute />}
+      />
+    </Routes>
+  );
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Root App
@@ -773,27 +923,35 @@ export default function App() {
 
   // ── Shared shell props ────────────────────────────────────────────────────
   const shellProps = {
-    currentUser: currentUser!,
+    currentUser: currentUser,
     demoUsers,
     onUserChange: handleUserChange,
     onLogout: handleLogout,
   };
 
   return (
-    <Routes>
-      {/* ── Public routes ──────────────────────────────────────────────────── */}
-      <Route path="/" element={<LandingPage />} />
-      <Route
-        path="/login"
-        element={
-          <LoginPage
-            onLogin={(user) => {
-              setCurrentUser(user);
-            }}
-          />
-        }
-      />
-      <Route path="/marketplace/*" element={<PublicMarketplaceRoute />} />
+    <ErrorBoundary>
+      <SupportModeBanner />
+      <ScrollToTop />
+      <Routes>
+        {/* ── Public routes ──────────────────────────────────────────────────── */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/for-owners" element={<ForOwnersPage />} />
+        <Route path="/for-customers" element={<ForCustomersPage />} />
+        <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route
+          path="/login"
+          element={
+            <LoginPage
+              onLogin={(user) => {
+                setCurrentUser(user);
+              }}
+            />
+          }
+        />
+        <Route path="/marketplace/*" element={<PublicMarketplaceRoute />} />
 
       {/* ── Dashboard (Owner + Staff) ────────────────────────────────────── */}
       <Route
@@ -802,13 +960,12 @@ export default function App() {
             currentUser={currentUser}
             bootstrapping={bootstrapping}
             allowedRoles={['SHOP_OWNER', 'STAFF']}
-            redirectTo="/login"
           />
         }
       >
         <Route
           path="/dashboard"
-          element={<DashboardShell {...shellProps} currentUser={currentUser!} />}
+          element={<DashboardShell {...shellProps} currentUser={currentUser} />}
         >
           {/* Owner routes */}
           <Route index element={
@@ -820,10 +977,9 @@ export default function App() {
             path="home"
             element={
               currentUser?.role === 'SHOP_OWNER' ? (
-                <OwnerDashboardView
-                  authToken={currentUser.token}
+                <OwnerHomeRouteWrapper
+                  authToken={currentUser?.token ?? ''}
                   currentUser={currentUser}
-                  onNavigate={(id) => navigate(id.startsWith('/') ? id : `/dashboard/${id === 'dashboard' ? 'home' : id}`)}
                 />
               ) : (
                 <Navigate to="/dashboard/tasks" replace />
@@ -832,21 +988,15 @@ export default function App() {
           />
           <Route
             path="orders"
-            element={
-              currentUser?.role === 'SHOP_OWNER' ? (
-                <OwnerOrdersView authToken={currentUser!.token} />
-              ) : (
-                <StaffTasksPage currentUser={currentUser!} />
-              )
-            }
+            element={<OwnerOrdersView authToken={currentUser?.token ?? ''} />}
           />
           <Route path="customers" element={<CustomerDirectoryView authToken={currentUser?.token ?? ''} />} />
-          <Route path="measurements" element={<CustomerDirectoryView authToken={currentUser?.token ?? ''} />} />
+          <Route path="measurements" element={<MeasurementsDirectoryView authToken={currentUser?.token ?? ''} />} />
           <Route
             path="fabric"
             element={
               currentUser?.role === 'SHOP_OWNER' ? (
-                <OwnerFabricView authToken={currentUser.token} />
+                <OwnerFabricView authToken={currentUser?.token ?? ''} />
               ) : (
                 <Navigate to="/dashboard/tasks" replace />
               )
@@ -856,7 +1006,7 @@ export default function App() {
             path="staff"
             element={
               currentUser?.role === 'SHOP_OWNER' ? (
-                <OwnerStaffView authToken={currentUser.token} />
+                <OwnerStaffView authToken={currentUser?.token ?? ''} />
               ) : (
                 <Navigate to="/dashboard/tasks" replace />
               )
@@ -866,7 +1016,7 @@ export default function App() {
             path="billing"
             element={
               currentUser?.role === 'SHOP_OWNER' ? (
-                <OwnerInvoicesView authToken={currentUser.token} />
+                <OwnerInvoicesView authToken={currentUser?.token ?? ''} />
               ) : (
                 <Navigate to="/dashboard/tasks" replace />
               )
@@ -876,20 +1026,29 @@ export default function App() {
             path="products"
             element={
               currentUser?.role === 'SHOP_OWNER' ? (
-                <ProductsAndServicesView authToken={currentUser.token} />
+                <ProductsAndServicesView authToken={currentUser?.token ?? ''} />
               ) : (
                 <Navigate to="/dashboard/tasks" replace />
               )
             }
           />
-          <Route path="reports" element={<PlaceholderView viewId="reports" />} />
-          <Route path="settings" element={<PlaceholderView viewId="settings" />} />
+          <Route
+            path="reports"
+            element={
+              currentUser?.role === 'SHOP_OWNER' ? (
+                <OwnerReportsView authToken={currentUser?.token ?? ''} />
+              ) : (
+                <Navigate to="/dashboard/tasks" replace />
+              )
+            }
+          />
+          <Route path="settings" element={<OwnerSettingsView authToken={currentUser?.token ?? ''} />} />
           <Route
             path="marketplace-settings"
             element={
               currentUser?.role === 'SHOP_OWNER' ? (
                 <OwnerMarketplaceSettingsView
-                  authToken={currentUser.token}
+                  authToken={currentUser?.token ?? ''}
                   onPreviewStorefront={(tenantId) => navigate(`/dashboard/marketplace/${tenantId}`)}
                 />
               ) : (
@@ -914,7 +1073,7 @@ export default function App() {
             }
           />
           {/* Staff tasks (default Staff landing) */}
-          <Route path="tasks" element={<StaffTasksPage currentUser={currentUser!} />} />
+          <Route path="tasks" element={<StaffTasksPage currentUser={currentUser} />} />
           <Route path="*" element={<Navigate to={currentUser?.role === 'SHOP_OWNER' ? '/dashboard/home' : '/dashboard/tasks'} replace />} />
         </Route>
       </Route>
@@ -926,13 +1085,12 @@ export default function App() {
             currentUser={currentUser}
             bootstrapping={bootstrapping}
             allowedRoles={['CUSTOMER']}
-            redirectTo="/login"
           />
         }
       >
         <Route
           path="/portal/*"
-          element={<PortalShell {...shellProps} currentUser={currentUser!} />}
+          element={<PortalShell {...shellProps} currentUser={currentUser} />}
         />
       </Route>
 
@@ -943,13 +1101,12 @@ export default function App() {
             currentUser={currentUser}
             bootstrapping={bootstrapping}
             allowedRoles={['SUPER_ADMIN']}
-            redirectTo={currentUser ? defaultRouteForRole(currentUser.role) : '/login'}
           />
         }
       >
         <Route
           path="/admin/*"
-          element={<AdminShell {...shellProps} currentUser={currentUser!} />}
+          element={<AdminShell {...shellProps} currentUser={currentUser} />}
         />
       </Route>
 
@@ -961,10 +1118,12 @@ export default function App() {
       <Route path="/fabric-inventory" element={<Navigate to="/dashboard/fabric" replace />} />
       <Route path="/staff" element={<Navigate to="/dashboard/staff" replace />} />
       <Route path="/billing" element={<Navigate to={currentUser?.role === 'CUSTOMER' ? '/portal/invoices' : '/dashboard/billing'} replace />} />
+      <Route path="/settings" element={<Navigate to="/dashboard/settings" replace />} />
       <Route path="/reports" element={<Navigate to="/dashboard/reports" replace />} />
 
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </ErrorBoundary>
   );
 }

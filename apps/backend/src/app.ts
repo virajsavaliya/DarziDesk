@@ -30,6 +30,9 @@ import {
   adminMarketplaceRouter,
 } from './modules/marketplace/marketplace.router';
 import { adminSubscriptionRouter, publicSubscriptionRouter } from './modules/subscriptions/subscription.router';
+import { adminRouter } from './modules/admin/admin.router';
+import { tenantSubscriptionRouter } from './modules/subscriptions/subscription.tenant.router';
+import { reportsRouter } from './modules/reports/reports.router';
 import { devRouter } from './modules/dev/dev.router';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -86,8 +89,11 @@ export function createApp(): Application {
   app.use('/api/marketplace', publicMarketplaceRouter);
   app.use('/api/shop', shopMarketplaceRouter);
   app.use('/api/admin/marketplace', adminMarketplaceRouter);
+  app.use('/api/admin', adminRouter);
   app.use('/api/admin', adminSubscriptionRouter);
   app.use('/api/public', publicSubscriptionRouter);
+  app.use('/api/subscription', tenantSubscriptionRouter);
+  app.use('/api/reports', reportsRouter);
   app.use('/api/dev', devRouter);
 
   // 404 handler — must come after all routes

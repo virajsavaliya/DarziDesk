@@ -33,11 +33,13 @@ export const CreateOrderSchema = z.object({
     .optional()
     .nullable(),
   notes: z.string().trim().max(500).optional().nullable(),
+  assignedStaffId: z.string().uuid('Invalid staff UUID').optional().nullable(),
 });
 
 export const TransitionOrderStatusSchema = z.object({
   toStatus: z.nativeEnum(OrderStatus),
   note: z.string().trim().max(500).optional().nullable(),
+  expectedVersion: z.number().int().optional(),
 });
 
 export const AssignOrderSchema = z.object({

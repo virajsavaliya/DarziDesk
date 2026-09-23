@@ -12,6 +12,9 @@ import {
   Store,
   Clock3,
   XCircle,
+  Receipt,
+  Sparkles,
+  Zap,
 } from 'lucide-react';
 import type {
   OwnerDashboardSummary,
@@ -30,6 +33,9 @@ import { DonutChart } from '../common/DonutChart';
 import { EmptyState } from '../common/EmptyState';
 import { Drawer } from '../common/Drawer';
 import { OrderDetailView } from './OrderDetailView';
+import { NewOrderDrawer } from './NewOrderDrawer';
+import { CreateInvoiceDrawer } from './CreateInvoiceDrawer';
+import { OrderCard } from './OrderCard';
 
 // Status color map for the donut chart (using design token hex values)
 const STATUS_COLORS: Record<OrderStatus, string> = {
@@ -45,9 +51,9 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
 
 const QUICK_ACTIONS = [
   { id: 'new-order', icon: <PlusCircle className="w-5 h-5" />, label: 'New Order', color: 'bg-accent/10 text-accent hover:bg-accent/20' },
+  { id: 'create-invoice', icon: <Receipt className="w-5 h-5" />, label: 'Create Invoice', color: 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20' },
   { id: 'add-customer', icon: <UserPlus className="w-5 h-5" />, label: 'Add Customer', color: 'bg-info/10 text-info hover:bg-info/20' },
   { id: 'record-payment', icon: <CreditCard className="w-5 h-5" />, label: 'Record Payment', color: 'bg-success/10 text-success hover:bg-success/20' },
-  { id: 'view-reports', icon: <BarChart2 className="w-5 h-5" />, label: 'View Reports', color: 'bg-purple-100 text-purple-600 hover:bg-purple-200' },
 ];
 
 function getGreeting(): string {
@@ -61,12 +67,22 @@ interface OwnerDashboardViewProps {
   authToken: string;
   currentUser: { name: string };
   onNavigate?: (id: string) => void;
+  planName?: string;
+  isTrial?: boolean;
+  trialDaysRemaining?: number | null;
+  lockedCount?: number;
+  onOpenUpgrade?: () => void;
 }
 
 export const OwnerDashboardView: React.FC<OwnerDashboardViewProps> = ({
   authToken,
   currentUser,
   onNavigate,
+  planName = 'Basic',
+  isTrial = false,
+  trialDaysRemaining = null,
+  lockedCount = 0,
+  onOpenUpgrade,
 }) => {
   const [summary, setSummary] = useState<OwnerDashboardSummary | null>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
@@ -76,6 +92,8 @@ export const OwnerDashboardView: React.FC<OwnerDashboardViewProps> = ({
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
+  const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const headers = { Authorization: `Bearer ${authToken}` };
@@ -191,14 +209,14 @@ export const OwnerDashboardView: React.FC<OwnerDashboardViewProps> = ({
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-text-primary leading-tight">
-            {getGreeting()}, {currentUser.name.split(' ')[0]} 👋
+            {getGreeting()}, {currentUser.name.split(' ')[0]}
           </h1>
           <p className="text-text-secondary text-sm mt-0.5">
             Here's what's happening in your shop today.
           </p>
         </div>
         <button
-          onClick={() => onNavigate?.('orders')}
+          onClick={() => setIsNewOrderOpen(true)}
           className="flex items-center gap-2 bg-accent text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-accent/90 transition-colors shadow-sm min-h-[44px]"
         >
           <PlusCircle className="w-4 h-4" />
@@ -206,8 +224,46 @@ export const OwnerDashboardView: React.FC<OwnerDashboardViewProps> = ({
         </button>
       </div>
 
+      {/* ── Subscription Plan Trial / Starter Banner ────────────────── */}
+      {(planName === 'Basic' || lockedCount > 0 || isTrial) && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-brand via-brand-dark to-slate-900 text-white border border-accent/40 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-accent/20 border border-accent/40 text-accent flex items-center justify-center shrink-0 mt-0.5">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-bold tracking-tight text-white">
+                  {isTrial && trialDaysRemaining !== null && trialDaysRemaining !== undefined
+                    ? `${trialDaysRemaining} Day${trialDaysRemaining === 1 ? '' : 's'} Left in Your Free Trial`
+                    : `You are currently on the ${planName} Starter Plan`}
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-accent/25 border border-accent/40 text-accent text-[10px] font-extrabold tracking-wide uppercase">
+                  {isTrial ? '14-Day Free Trial' : lockedCount > 0 ? `${lockedCount} Advanced Features Locked` : 'Basic Tier'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                {isTrial && trialDaysRemaining !== null
+                  ? `Your business has ${trialDaysRemaining} day${trialDaysRemaining === 1 ? '' : 's'} remaining in your trial period. Upgrade to Pro at any time to preserve full access and unlock Fabric Roll Inventory, In-depth Reports, and Marketplace Storefront.`
+                  : `Fabric Inventory, Reports & Analytics, Custom Pricing, and Public Marketplace listing are locked. Upgrade to Pro to immediately activate all studio superpowers.`}
+              </p>
+            </div>
+          </div>
+          {onOpenUpgrade && (
+            <button
+              type="button"
+              onClick={onOpenUpgrade}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-accent hover:bg-accent/90 active:scale-95 text-white text-xs font-bold rounded-xl shadow-md transition-all shrink-0 cursor-pointer min-h-[40px]"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              Upgrade to Pro
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── KPI StatCards ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
           title="Today's Orders"
           value={loadingSummary ? '—' : (summary?.todaysOrders ?? 0)}
@@ -269,7 +325,7 @@ export const OwnerDashboardView: React.FC<OwnerDashboardViewProps> = ({
         action={
           <button
             onClick={() => onNavigate?.('orders')}
-            className="text-xs text-accent font-semibold hover:underline flex items-center gap-1"
+            className="text-xs text-accent font-semibold hover:underline flex items-center gap-1 min-h-[36px] px-1"
           >
             View all <ArrowRight className="w-3 h-3" />
           </button>
@@ -281,13 +337,18 @@ export const OwnerDashboardView: React.FC<OwnerDashboardViewProps> = ({
           loading={loadingOrders}
           emptyMessage="No orders yet — place your first order to get started."
           getRowKey={(o) => o.id}
+          onRowClick={(o) => setSelectedOrder(o)}
+          mobileCardRender={(o) => (
+            <OrderCard order={o} onClick={() => setSelectedOrder(o)} />
+          )}
         />
       </SectionCard>
 
+
       {/* ── Activity + Quick Actions Row ───────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-stretch">
         {/* Activity Feed */}
-        <SectionCard title="Recent Activity" className="lg:col-span-3">
+        <SectionCard title="Recent Activity" className="lg:col-span-3 flex flex-col h-full">
           {loadingActivity ? (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -297,7 +358,7 @@ export const OwnerDashboardView: React.FC<OwnerDashboardViewProps> = ({
           ) : activity.length === 0 ? (
             <EmptyState icon={<Clock className="w-5 h-5" />} title="No activity yet" compact />
           ) : (
-            <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
+            <div className="space-y-1.5 flex-1 min-h-0 max-h-[480px] overflow-y-auto pr-1">
               {activity.map((entry) => (
                 <div
                   key={entry.id}
@@ -354,7 +415,8 @@ export const OwnerDashboardView: React.FC<OwnerDashboardViewProps> = ({
                 <button
                   key={action.id}
                   onClick={() => {
-                    if (action.id === 'new-order') onNavigate?.('orders');
+                    if (action.id === 'new-order') setIsNewOrderOpen(true);
+                    else if (action.id === 'create-invoice') setIsCreateInvoiceOpen(true);
                     else if (action.id === 'add-customer') onNavigate?.('customers');
                     else if (action.id === 'record-payment') onNavigate?.('billing');
                     else onNavigate?.('reports');
@@ -479,6 +541,26 @@ export const OwnerDashboardView: React.FC<OwnerDashboardViewProps> = ({
           />
         )}
       </Drawer>
+
+      {/* New Order Drawer */}
+      <NewOrderDrawer
+        isOpen={isNewOrderOpen}
+        onClose={() => setIsNewOrderOpen(false)}
+        authToken={authToken}
+        onOrderCreated={() => {
+          setRefreshTrigger((p) => p + 1);
+        }}
+      />
+
+      {/* Create Invoice Drawer */}
+      <CreateInvoiceDrawer
+        isOpen={isCreateInvoiceOpen}
+        onClose={() => setIsCreateInvoiceOpen(false)}
+        authToken={authToken}
+        onInvoiceCreated={() => {
+          setRefreshTrigger((p) => p + 1);
+        }}
+      />
     </div>
   );
 };

@@ -112,10 +112,11 @@ async function resetAndSeed() {
 
   // 3. Create Fresh Tailor Shop: Shree Ganesh Bespoke Tailors (Surat)
   console.log('🏪 Creating Shop: Shree Ganesh Bespoke Tailors...');
+  const demoPasswordHash = await argon2.hash('demo123');
   const tenant = await prisma.tenant.create({
     data: {
       name: 'Shree Ganesh Bespoke Tailors',
-      slug: 'shree-ganesh-tailors',
+      slug: 'demo',
       timezone: 'Asia/Kolkata',
       taxRatePercent: new Prisma.Decimal('5.00'), // 5% GST for tailoring
       smsEnabled: true,
@@ -167,8 +168,20 @@ async function resetAndSeed() {
   const owner = await prisma.user.create({
     data: {
       tenantId: tenant.id,
+      email: 'demo@gmail.com',
+      passwordHash: demoPasswordHash,
+      firstName: 'Ramesh',
+      lastName: 'Patel',
+      role: UserRole.SHOP_OWNER,
+    },
+  });
+
+  // Also support owner@shreeganesh.com for backwards compatibility
+  await prisma.user.create({
+    data: {
+      tenantId: tenant.id,
       email: 'owner@shreeganesh.com',
-      passwordHash,
+      passwordHash: demoPasswordHash,
       firstName: 'Ramesh',
       lastName: 'Patel',
       role: UserRole.SHOP_OWNER,
@@ -810,13 +823,13 @@ async function resetAndSeed() {
   console.log('🎉 SEED COMPLETED SUCCESSFULLY!');
   console.log('======================================================');
   console.log('🏪 Shop: Shree Ganesh Bespoke Tailors');
-  console.log('   Slug: shree-ganesh-tailors');
+  console.log('   Slug: demo (alias: shree-ganesh-tailors)');
   console.log('   City: Surat');
   console.log('------------------------------------------------------');
   console.log('🔑 ACCOUNTS CREATED:');
   console.log('   1. SHOP OWNER:');
-  console.log('      Email:    owner@shreeganesh.com');
-  console.log('      Password: Password123!');
+  console.log('      Email:    demo@gmail.com (alias: owner@shreeganesh.com)');
+  console.log('      Password: demo123');
   console.log('      Name:     Ramesh Patel (Owner & Master Tailor)');
   console.log('');
   console.log('   2. STAFF 1 (Master Cutter & Measurer):');

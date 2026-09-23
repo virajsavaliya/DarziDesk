@@ -54,11 +54,13 @@ export function getStoredAuth(): StoredAuth | null {
 /** Persist auth to localStorage. */
 export function setStoredAuth(auth: StoredAuth): void {
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
+  window.dispatchEvent(new Event('darzi-auth-change'));
 }
 
 /** Clear stored auth (logout). */
 export function clearStoredAuth(): void {
   localStorage.removeItem(AUTH_STORAGE_KEY);
+  window.dispatchEvent(new Event('darzi-auth-change'));
 }
 
 /**
@@ -70,8 +72,9 @@ export function decodeJwtPayload(token: string): Record<string, unknown> | null 
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
-    const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(atob(payload));
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64.padEnd(b64.length + (4 - (b64.length % 4)) % 4, '=');
+    return JSON.parse(atob(padded));
   } catch {
     return null;
   }
@@ -84,10 +87,10 @@ export function decodeJwtPayload(token: string): Record<string, unknown> | null 
 function redirectForRole(role: string): string {
   switch (role) {
     case 'SUPER_ADMIN': return '/admin/tenants';
-    case 'SHOP_OWNER':  return '/dashboard/home';
-    case 'STAFF':       return '/dashboard/tasks';
-    case 'CUSTOMER':    return '/portal/marketplace';
-    default:            return '/dashboard/home';
+    case 'SHOP_OWNER': return '/dashboard/home';
+    case 'STAFF': return '/dashboard/tasks';
+    case 'CUSTOMER': return '/portal/marketplace';
+    default: return '/dashboard/home';
   }
 }
 
@@ -369,22 +372,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           <div className="flex bg-surface-muted border border-border rounded-xl p-1 gap-1 mb-8">
             <button
               onClick={() => switchTab('business')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                tab === 'business'
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${tab === 'business'
                   ? 'bg-surface text-brand shadow-sm border border-border'
                   : 'text-text-muted hover:text-text-secondary'
-              }`}
+                }`}
             >
               <Building2 className="w-4 h-4" />
               Business
             </button>
             <button
               onClick={() => switchTab('customer')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                tab === 'customer'
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${tab === 'customer'
                   ? 'bg-surface text-brand shadow-sm border border-border'
                   : 'text-text-muted hover:text-text-secondary'
-              }`}
+                }`}
             >
               <User className="w-4 h-4" />
               Customer

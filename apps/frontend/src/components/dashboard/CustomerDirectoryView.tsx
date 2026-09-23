@@ -5,7 +5,8 @@ import { MeasurementCard } from './MeasurementCard';
 import { SearchInput } from '../common/SearchInput';
 import { AddCustomerDrawer } from './AddCustomerDrawer';
 import { AddMeasurementDrawer } from './AddMeasurementDrawer';
-import { Users, Ruler, AlertCircle, UserPlus, Plus } from 'lucide-react';
+import { EditCustomerDrawer } from './EditCustomerDrawer';
+import { Users, Ruler, AlertCircle, UserPlus, Plus, Edit3 } from 'lucide-react';
 
 interface CustomerDirectoryViewProps {
   authToken: string;
@@ -27,7 +28,9 @@ export const CustomerDirectoryView: React.FC<CustomerDirectoryViewProps> = ({
 
   // Drawer states
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
+  const [isEditCustomerOpen, setIsEditCustomerOpen] = useState(false);
   const [isAddMeasurementOpen, setIsAddMeasurementOpen] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'LIST' | 'PROFILE'>('LIST');
 
   const fetchProfilesForCustomer = useCallback(
     async (customerId: string) => {
@@ -70,17 +73,20 @@ export const CustomerDirectoryView: React.FC<CustomerDirectoryViewProps> = ({
         setHasSearched(true);
 
         // Auto-select first customer if none selected yet
-        if (!trimmed && list.length > 0 && !selectedCustomer) {
-          setSelectedCustomer(list[0]);
-          fetchProfilesForCustomer(list[0].id);
-        }
+        setSelectedCustomer((curr) => {
+          if (!trimmed && list.length > 0 && !curr) {
+            fetchProfilesForCustomer(list[0].id);
+            return list[0];
+          }
+          return curr;
+        });
       } catch (err: any) {
         setSearchError(err.message || 'Error loading customers');
       } finally {
         setSearching(false);
       }
     },
-    [authToken, selectedCustomer, fetchProfilesForCustomer],
+    [authToken, fetchProfilesForCustomer],
   );
 
   // Initial load on mount
@@ -90,6 +96,18 @@ export const CustomerDirectoryView: React.FC<CustomerDirectoryViewProps> = ({
     }
   }, [authToken, fetchCustomers]);
 
+  const handleCloseAddCustomer = useCallback(() => {
+    setIsAddCustomerOpen(false);
+  }, []);
+
+  const handleCloseEditCustomer = useCallback(() => {
+    setIsEditCustomerOpen(false);
+  }, []);
+
+  const handleCloseAddMeasurement = useCallback(() => {
+    setIsAddMeasurementOpen(false);
+  }, []);
+
   const handleSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     fetchCustomers(searchQuery);
@@ -98,6 +116,7 @@ export const CustomerDirectoryView: React.FC<CustomerDirectoryViewProps> = ({
   const handleSelectCustomer = (customer: Customer) => {
     setSelectedCustomer(customer);
     fetchProfilesForCustomer(customer.id);
+    setMobileTab('PROFILE');
   };
 
   const handleCustomerCreated = (newCustomer: Customer) => {
@@ -109,13 +128,14 @@ export const CustomerDirectoryView: React.FC<CustomerDirectoryViewProps> = ({
     setProfiles([]);
   };
 
+  const handleCustomerUpdated = (updatedCustomer: Customer) => {
+    setCustomers((prev) =>
+      prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c))
+    );
+    setSelectedCustomer(updatedCustomer);
+  };
+
   const handleProfileCreated = (newProfile: MeasurementProfile) => {
-    if (newProfile.customerId && (!selectedCustomer || selectedCustomer.id !== newProfile.customerId)) {
-      const match = customers.find((c) => c.id === newProfile.customerId);
-      if (match) {
-        setSelectedCustomer(match);
-      }
-    }
     setProfiles((prev) => {
       const exists = prev.some((p) => p.id === newProfile.id);
       return exists ? prev.map((p) => (p.id === newProfile.id ? newProfile : p)) : [newProfile, ...prev];
@@ -129,18 +149,19 @@ export const CustomerDirectoryView: React.FC<CustomerDirectoryViewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-extrabold text-text-primary">
-              Customer & Measurement Directory
+              Customer Directory & Client CRM
             </h1>
             <p className="text-xs text-text-secondary mt-0.5">
-              Manage client records, body measurements, and bespoke garment specifications
+              Manage client profiles, contact information, order histories, and bespoke sizing archives
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          {/* Action Hierarchy: Primary (Add Customer) + Secondary (Record Measurements) */}
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
             <button
               type="button"
               onClick={() => setIsAddCustomerOpen(true)}
-              className="min-h-[44px] px-4 py-2.5 bg-brand text-white font-bold text-sm rounded-xl hover:bg-brand-dark active:scale-[0.98] transition-all flex items-center gap-2 shadow-sm"
+              className="min-h-[44px] px-4 py-2.5 bg-brand text-white font-bold text-sm rounded-xl hover:bg-brand-dark active:scale-[0.98] transition-all flex items-center gap-2 shadow-sm cursor-pointer"
               id="btn-add-customer"
             >
               <UserPlus className="w-4 h-4" />
@@ -150,10 +171,10 @@ export const CustomerDirectoryView: React.FC<CustomerDirectoryViewProps> = ({
             <button
               type="button"
               onClick={() => setIsAddMeasurementOpen(true)}
-              className="min-h-[44px] px-4 py-2.5 bg-accent text-white font-bold text-sm rounded-xl hover:bg-accent-dark active:scale-[0.98] transition-all flex items-center gap-2 shadow-sm"
+              className="min-h-[44px] px-3.5 py-2.5 bg-surface-muted border border-border text-text-primary font-bold text-sm rounded-xl hover:bg-border active:scale-[0.98] transition-all flex items-center gap-2 cursor-pointer"
               id="btn-record-measurements"
             >
-              <Ruler className="w-4 h-4" />
+              <Ruler className="w-4 h-4 text-brand" />
               <span>Record Measurements</span>
             </button>
           </div>
@@ -172,7 +193,7 @@ export const CustomerDirectoryView: React.FC<CustomerDirectoryViewProps> = ({
           <button
             type="submit"
             disabled={searching}
-            className="min-h-[44px] px-5 py-2.5 bg-surface-muted border border-border text-text-primary font-bold text-sm rounded-xl hover:bg-border transition-all disabled:opacity-50 shrink-0"
+            className="min-h-[44px] px-5 py-2.5 bg-surface-muted border border-border text-text-primary font-bold text-sm rounded-xl hover:bg-border transition-all disabled:opacity-50 shrink-0 cursor-pointer"
           >
             {searching ? 'Searching...' : 'Search'}
           </button>
@@ -183,7 +204,7 @@ export const CustomerDirectoryView: React.FC<CustomerDirectoryViewProps> = ({
                 setSearchQuery('');
                 fetchCustomers('');
               }}
-              className="min-h-[44px] px-3.5 py-2.5 text-xs font-semibold text-text-secondary hover:text-text-primary transition-all"
+              className="min-h-[44px] px-3.5 py-2.5 text-xs font-semibold text-text-secondary hover:text-text-primary transition-all cursor-pointer"
             >
               Clear
             </button>
@@ -198,10 +219,36 @@ export const CustomerDirectoryView: React.FC<CustomerDirectoryViewProps> = ({
         )}
       </div>
 
+      {/* Mobile Tab Switcher (< 1024px) */}
+      <div className="lg:hidden flex items-center p-1 bg-surface-muted rounded-xl border border-border">
+        <button
+          type="button"
+          onClick={() => setMobileTab('LIST')}
+          className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            mobileTab === 'LIST'
+              ? 'bg-surface text-text-primary shadow-xs'
+              : 'text-text-muted hover:text-text-primary'
+          }`}
+        >
+          Clients ({customers.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('PROFILE')}
+          className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            mobileTab === 'PROFILE'
+              ? 'bg-surface text-text-primary shadow-xs'
+              : 'text-text-muted hover:text-text-primary'
+          }`}
+        >
+          {selectedCustomer ? `${selectedCustomer.firstName}'s Specs` : 'Client Specs'}
+        </button>
+      </div>
+
       {/* ── Split Pane: Customer List vs. Measurement Records ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Customer Results */}
-        <div className="lg:col-span-5 space-y-3">
+        <div className={`lg:col-span-5 space-y-3 ${mobileTab === 'LIST' ? 'block' : 'hidden lg:block'}`}>
           <div className="flex items-center justify-between px-1">
             <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary">
               Customers ({customers.length})
@@ -209,7 +256,7 @@ export const CustomerDirectoryView: React.FC<CustomerDirectoryViewProps> = ({
             <button
               type="button"
               onClick={() => setIsAddCustomerOpen(true)}
-              className="text-xs font-bold text-brand hover:text-brand-dark flex items-center gap-1 transition-colors"
+              className="text-xs font-bold text-brand hover:text-brand-dark flex items-center gap-1 transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>New</span>
@@ -243,11 +290,11 @@ export const CustomerDirectoryView: React.FC<CustomerDirectoryViewProps> = ({
           </div>
         </div>
 
-        {/* Right: Selected Customer Profiles */}
-        <div className="lg:col-span-7">
+        {/* Right: Customer Details & Measurement Records */}
+        <div className={`lg:col-span-7 ${mobileTab === 'PROFILE' ? 'block' : 'hidden lg:block'}`}>
           {selectedCustomer ? (
             <div className="bg-surface rounded-2xl p-6 border border-border shadow-sm space-y-5">
-              {/* Customer Profile Header with Add Measurement Action */}
+              {/* Customer Profile Header with Edit and Add Measurement Actions */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-border gap-3">
                 <div>
                   <h2 className="text-lg font-extrabold text-text-primary flex items-center gap-2">
@@ -261,15 +308,27 @@ export const CustomerDirectoryView: React.FC<CustomerDirectoryViewProps> = ({
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsAddMeasurementOpen(true)}
-                  className="min-h-[40px] px-3.5 py-2 bg-accent text-white font-bold text-xs rounded-xl hover:bg-accent-dark active:scale-[0.98] transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
-                  id="btn-add-measurement-for-customer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Measurement</span>
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditCustomerOpen(true)}
+                    className="min-h-[40px] px-3.5 py-2 bg-surface-muted hover:bg-surface-elevated text-text-primary border border-border font-bold text-xs rounded-xl active:scale-[0.98] transition-all flex items-center gap-1.5 shrink-0 shadow-sm cursor-pointer"
+                    id="btn-edit-customer"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-text-secondary" />
+                    <span>Edit Profile</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsAddMeasurementOpen(true)}
+                    className="min-h-[40px] px-3.5 py-2 bg-accent text-white font-bold text-xs rounded-xl hover:bg-accent-dark active:scale-[0.98] transition-all flex items-center gap-1.5 shrink-0 shadow-sm cursor-pointer"
+                    id="btn-add-measurement-for-customer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Measurement</span>
+                  </button>
+                </div>
               </div>
 
               {loadingProfiles && (
@@ -337,14 +396,22 @@ export const CustomerDirectoryView: React.FC<CustomerDirectoryViewProps> = ({
       {/* ── Slide-Over Drawers ───────────────────────────────── */}
       <AddCustomerDrawer
         isOpen={isAddCustomerOpen}
-        onClose={() => setIsAddCustomerOpen(false)}
+        onClose={handleCloseAddCustomer}
         authToken={authToken}
         onCustomerCreated={handleCustomerCreated}
       />
 
+      <EditCustomerDrawer
+        isOpen={isEditCustomerOpen}
+        onClose={handleCloseEditCustomer}
+        authToken={authToken}
+        customer={selectedCustomer}
+        onCustomerUpdated={handleCustomerUpdated}
+      />
+
       <AddMeasurementDrawer
         isOpen={isAddMeasurementOpen}
-        onClose={() => setIsAddMeasurementOpen(false)}
+        onClose={handleCloseAddMeasurement}
         authToken={authToken}
         customers={customers}
         selectedCustomer={selectedCustomer}

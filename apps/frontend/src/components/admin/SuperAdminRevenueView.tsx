@@ -6,13 +6,13 @@ import {
   AlertTriangle,
   Users,
   RefreshCw,
-  Calendar,
   Layers,
   ArrowUpRight,
   ShieldCheck,
   Zap,
 } from 'lucide-react';
 import type { PlatformRevenueSummary, SubscriptionPlanItem } from '../../types/dashboard';
+import { SmoothRevenueChart } from './SmoothRevenueChart';
 
 interface SuperAdminRevenueViewProps {
   authToken: string;
@@ -222,68 +222,17 @@ export const SuperAdminRevenueView: React.FC<SuperAdminRevenueViewProps> = ({ au
       {/* Analytics & Plan Breakdown Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* MRR Trajectory Visualizer */}
-        <div className="lg:col-span-2 p-6 bg-surface border border-border rounded-2xl shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-text-primary">Recurring Revenue Trajectory</h3>
-              <p className="text-xs text-text-muted">
-                Estimated 6-month SaaS growth curve based on active billings
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 text-xs font-medium text-text-secondary bg-surface-muted px-2.5 py-1 rounded-md border border-border">
-                <Calendar className="w-3.5 h-3.5 text-brand-primary" /> Past 6 Months
-              </span>
-            </div>
-          </div>
-
-          {/* SVG Growth Graph */}
-          <div className="h-52 w-full pt-4 relative">
-            <svg className="w-full h-full overflow-visible" viewBox="0 0 600 160" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="mrrGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#163B5C" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="#163B5C" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-              {/* Background horizontal grid lines */}
-              <line x1="0" y1="30" x2="600" y2="30" stroke="currentColor" strokeDasharray="4 4" className="text-border/40" />
-              <line x1="0" y1="80" x2="600" y2="80" stroke="currentColor" strokeDasharray="4 4" className="text-border/40" />
-              <line x1="0" y1="130" x2="600" y2="130" stroke="currentColor" strokeDasharray="4 4" className="text-border/40" />
-
-              {/* Shaded Area under curve */}
-              <path
-                d="M 20,135 Q 120,130 200,110 T 380,75 T 580,35 L 580,150 L 20,150 Z"
-                fill="url(#mrrGrad)"
-              />
-
-              {/* Main Trend Line */}
-              <path
-                d="M 20,135 Q 120,130 200,110 T 380,75 T 580,35"
-                fill="none"
-                stroke="#163B5C"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-              />
-
-              {/* Data points */}
-              <circle cx="20" cy="135" r="4" fill="#FFFFFF" stroke="#163B5C" strokeWidth="2.5" />
-              <circle cx="140" cy="125" r="4" fill="#FFFFFF" stroke="#163B5C" strokeWidth="2.5" />
-              <circle cx="260" cy="98" r="4" fill="#FFFFFF" stroke="#163B5C" strokeWidth="2.5" />
-              <circle cx="380" cy="75" r="4" fill="#FFFFFF" stroke="#163B5C" strokeWidth="2.5" />
-              <circle cx="490" cy="50" r="4" fill="#FFFFFF" stroke="#163B5C" strokeWidth="2.5" />
-              <circle cx="580" cy="35" r="5" fill="#F28C28" stroke="#FFFFFF" strokeWidth="2" />
-            </svg>
-            <div className="flex justify-between text-[11px] font-medium text-text-muted mt-3 px-1">
-              <span>Apr</span>
-              <span>May</span>
-              <span>Jun</span>
-              <span>Jul</span>
-              <span>Aug</span>
-              <span className="font-bold text-brand-primary">Sep (Current: {formatINR(revenue?.mrr || 0)})</span>
-            </div>
-          </div>
+        <div className="lg:col-span-2">
+          <SmoothRevenueChart
+            currentMrr={revenue?.mrr || 0}
+            currentArr={revenue?.arr || 0}
+            totalTenantsCount={revenue?.totalTenantsCount || 0}
+            activePaidTenantsCount={revenue?.activePaidTenantsCount || 0}
+            recentPayments={revenue?.recentPayments || []}
+            loading={loading}
+          />
         </div>
+
 
         {/* Subscription Tier Distribution */}
         <div className="p-6 bg-surface border border-border rounded-2xl shadow-sm space-y-4 flex flex-col justify-between">

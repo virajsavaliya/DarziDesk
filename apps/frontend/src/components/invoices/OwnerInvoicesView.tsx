@@ -249,9 +249,9 @@ export const OwnerInvoicesView: React.FC<OwnerInvoicesViewProps> = ({ authToken 
       <SectionCard
         title="All Invoices"
         action={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
             {/* Search Input */}
-            <div className="relative w-64">
+            <div className="relative w-full sm:w-64">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
               <input
                 type="text"
@@ -265,7 +265,7 @@ export const OwnerInvoicesView: React.FC<OwnerInvoicesViewProps> = ({ authToken 
         }
       >
         {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 pb-4 border-b border-border-default overflow-x-auto">
+        <div className="flex items-center gap-1.5 pb-4 border-b border-border-default overflow-x-auto no-scrollbar">
           {STATUS_FILTERS.map((tab) => {
             const active = selectedStatus === tab.id;
             return (
@@ -296,6 +296,64 @@ export const OwnerInvoicesView: React.FC<OwnerInvoicesViewProps> = ({ authToken 
             columns={columns}
             rows={invoices}
             getRowKey={(inv) => inv.id}
+            onRowClick={(inv) => setSelectedInvoice(inv)}
+            mobileCardRender={(inv) => {
+              const statusCfg = INVOICE_STATUS_CONFIG[inv.status] || {
+                label: inv.status,
+                bgClass: 'bg-surface-muted',
+                textClass: 'text-text-muted',
+                dotClass: 'bg-text-muted',
+              };
+              const custName = inv.customer
+                ? `${inv.customer.firstName} ${inv.customer.lastName}`
+                : 'Walk-in Client';
+
+              return (
+                <div
+                  onClick={() => setSelectedInvoice(inv)}
+                  className="p-4 rounded-2xl bg-surface border border-border shadow-xs hover:border-brand/40 transition-all cursor-pointer space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Receipt className="w-4 h-4 text-brand" />
+                      <span className="font-bold text-sm text-text-primary">{inv.invoiceNumber}</span>
+                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusCfg.bgClass} ${statusCfg.textClass}`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dotClass}`} />
+                      {statusCfg.label}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-text-secondary pt-2 border-t border-border/50">
+                    <div>
+                      <div className="font-semibold text-text-primary text-xs">{custName}</div>
+                      <div className="text-[11px] text-text-muted">
+                        {new Date(inv.createdAt).toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                        })}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-text-primary text-sm">
+                        ₹{Number(inv.totalAmount).toLocaleString('en-IN')}
+                      </div>
+                      {Number(inv.balanceDue) > 0 ? (
+                        <div className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                          Due: ₹{Number(inv.balanceDue).toLocaleString('en-IN')}
+                        </div>
+                      ) : (
+                        <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          Fully Paid
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            }}
           />
         ) : (
           <EmptyState

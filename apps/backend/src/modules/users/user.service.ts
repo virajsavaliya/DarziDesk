@@ -28,6 +28,7 @@ function toSafeUser(user: {
   lastName: string;
   tenantId: string | null;
   isActive: boolean;
+  _count?: { assignedOrders: number };
 }): SafeUser {
   return {
     id: user.id,
@@ -37,6 +38,7 @@ function toSafeUser(user: {
     lastName: user.lastName,
     tenantId: user.tenantId,
     isActive: user.isActive,
+    _count: user._count,
   };
 }
 
@@ -44,11 +46,21 @@ function toSafeUser(user: {
 // List staff in a tenant
 // ---------------------------------------------------------------------------
 
-export async function listStaff(tenantId: string): Promise<SafeUser[]> {
+export async function listStaff(
+  tenantId: string,
+  options?: { includeInactive?: boolean },
+): Promise<SafeUser[]> {
   const users = await withTenantContext(tenantId, (tx) =>
     tx.user.findMany({
-      where: { tenantId }, // Layer 1: app-level filter
-      // Layer 2: RLS USING policy enforces tenant_id = app.tenant_id in Postgres
+      where: {
+        tenantId,
+        ...(options?.includeInactive ? {} : { isActive: true }),
+      },
+      include: {
+        _count: {
+          select: { assignedOrders: true },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     }),
   );
@@ -106,7 +118,7 @@ export async function createStaffMember(
         tenantId: callerTenantId,
         email: data.email,
         passwordHash,
-        role: UserRole.STAFF, // Owner cannot elevate a new user to OWNER via this endpoint
+        role: (data.role as UserRole) || UserRole.STAFF,
         firstName: data.firstName,
         lastName: data.lastName,
       },
@@ -147,4 +159,102 @@ export async function setStaffActive(
   );
 
   return toSafeUser(user);
+}
+
+// ---------------------------------------------------------------------------
+// Update staff member role (by Shop Owner)
+// ---------------------------------------------------------------------------
+
+export async function updateStaffRole(
+  userId: string,
+  tenantId: string,
+  newRole: UserRole,
+  callerId?: string,
+): Promise<SafeUser> {
+  const existing = await withTenantContext(tenantId, (tx) =>
+    tx.user.findFirst({ where: { id: userId, tenantId } }),
+  );
+
+  if (!existing) {
+    throw new NotFoundError('User');
+  }
+
+  if (callerId && existing.id === callerId && newRole !== UserRole.SHOP_OWNER) {
+    throw new ForbiddenError('Cannot demote yourself from shop owner');
+  }
+
+  const updated = await withTenantContext(tenantId, (tx) =>
+    tx.user.update({
+      where: { id: userId },
+      data: { role: newRole },
+    }),
+  );
+
+  return toSafeUser(updated);
+}
+
+// ---------------------------------------------------------------------------
+// Delete staff member (by Shop Owner)
+// ---------------------------------------------------------------------------
+
+export async function deleteStaffMember(
+  userId: string,
+  tenantId: string,
+  callerId?: string,
+): Promise<{ success: boolean; deactivated?: boolean }> {
+  const existing = await withTenantContext(tenantId, (tx) =>
+    tx.user.findFirst({
+      where: { id: userId, tenantId },
+      include: {
+        _count: {
+          select: {
+            assignedOrders: true,
+            orderStatusLogs: true,
+            recordedPayments: true,
+            fabricStockTransactions: true,
+            measurementProfileVersions: true,
+          },
+        },
+      },
+    }),
+  );
+
+  if (!existing) {
+    throw new NotFoundError('User');
+  }
+
+  if (callerId && existing.id === callerId) {
+    throw new ForbiddenError('Cannot delete your own account');
+  }
+
+  if (existing.role === UserRole.SHOP_OWNER) {
+    throw new ForbiddenError('Cannot delete the shop owner account');
+  }
+
+  const hasHistory =
+    existing._count.assignedOrders > 0 ||
+    existing._count.orderStatusLogs > 0 ||
+    existing._count.recordedPayments > 0 ||
+    existing._count.fabricStockTransactions > 0 ||
+    existing._count.measurementProfileVersions > 0;
+
+  if (hasHistory) {
+    // Soft delete / deactivate so foreign keys and audit history stay intact
+    await withTenantContext(tenantId, (tx) =>
+      tx.user.update({
+        where: { id: userId },
+        data: { isActive: false },
+      }),
+    );
+    return { success: true, deactivated: true };
+  } else {
+    // No dependent audit records, clean hard delete
+    await withTenantContext(tenantId, async (tx) => {
+      await tx.passwordResetToken.deleteMany({ where: { userId } });
+      await tx.user.delete({
+        where: { id: userId },
+      });
+    });
+    return { success: true, deactivated: false };
+  }
 }

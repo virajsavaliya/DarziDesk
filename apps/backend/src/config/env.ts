@@ -80,6 +80,11 @@ const envSchema = z.object({
   LOG_LEVEL: z
     .enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent'])
     .default('info'),
+
+  // OpenWA WhatsApp Gateway
+  OPENWA_API_URL: z.string().url().default('http://localhost:2785'),
+  OPENWA_API_KEY: z.string().default('darzi_desk_whatsapp_secret_key_prod_2026_super_secure'),
+  OPENWA_SESSION_NAME: z.string().default('darzi-desk'),
 });
 
 function loadEnv() {

@@ -37,6 +37,7 @@ export interface SafeUser {
   lastName: string;
   tenantId: string | null;
   isActive: boolean;
+  _count?: { assignedOrders: number };
 }
 
 export interface SafeCustomer {
@@ -106,10 +107,15 @@ export async function registerTenant(
       data: { name: data.shopName, slug: data.slug },
     });
 
-    // Resolve or auto-seed the default TRIAL plan
+    // Resolve or auto-seed the default Basic TRIAL plan
     let defaultPlan = await tx.subscriptionPlan.findFirst({
-      where: { isDefault: true, isActive: true },
+      where: { name: 'Basic', isActive: true },
     });
+    if (!defaultPlan) {
+      defaultPlan = await tx.subscriptionPlan.findFirst({
+        where: { isDefault: true, isActive: true },
+      });
+    }
     if (!defaultPlan) {
       defaultPlan = await tx.subscriptionPlan.findFirst({
         where: { isActive: true },

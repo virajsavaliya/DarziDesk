@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Search, Package, X } from 'lucide-react';
 import type { Order, OrderStatus } from '../../types/dashboard';
 import { TaskCard } from './TaskCard';
 
@@ -87,13 +88,13 @@ export function TaskList({
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-surface border border-border focus:border-brand focus:ring-1 focus:ring-brand rounded-lg pl-8 pr-3 py-1.5 text-xs text-text-primary placeholder:text-text-muted transition-colors outline-none"
           />
-          <span className="absolute left-2.5 top-2 text-text-muted text-xs">🔍</span>
+          <Search className="absolute left-2.5 top-2 text-text-muted w-3.5 h-3.5" />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1.5 text-text-muted hover:text-text-primary text-xs"
+              className="absolute right-2.5 top-2 text-text-muted hover:text-text-primary"
             >
-              ✕
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
@@ -121,8 +122,8 @@ export function TaskList({
         </div>
       ) : (
         <div className="bg-surface border border-border rounded-xl p-12 text-center shadow-sm">
-          <div className="w-12 h-12 rounded-full bg-surface-muted flex items-center justify-center mx-auto text-2xl mb-3 text-text-muted">
-            📦
+          <div className="w-12 h-12 rounded-full bg-surface-muted flex items-center justify-center mx-auto mb-3 text-text-muted">
+            <Package className="w-6 h-6" />
           </div>
           <h3 className="text-base font-bold text-text-primary mb-1">No Orders Found</h3>
           <p className="text-xs text-text-secondary max-w-sm mx-auto">

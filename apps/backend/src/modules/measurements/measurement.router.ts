@@ -21,6 +21,7 @@ import {
   listProfilesForCustomer,
   getProfileWithHistory,
   addMeasurementVersion,
+  listAllProfilesForTenant,
 } from './measurement.service';
 import type { StaffJwtPayload } from '../../lib/jwt';
 
@@ -55,6 +56,21 @@ customerMeasurementsRouter.post('/', async (req: Request, res: Response, next: N
 
 export const measurementsRouter = Router();
 measurementsRouter.use(authenticateStaff, requireTenantContext, apiLimiter);
+
+// GET /api/measurements — list all profiles across tenant with optional garmentType & search filter
+measurementsRouter.get('/', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const tenantId = res.locals.tenantId as string;
+    const { garmentType, search } = req.query;
+    const profiles = await listAllProfilesForTenant(tenantId, {
+      garmentType: typeof garmentType === 'string' ? garmentType : undefined,
+      search: typeof search === 'string' ? search : undefined,
+    });
+    res.status(200).json({ data: profiles });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // GET /api/measurements/:profileId — get profile details + full immutable version history
 measurementsRouter.get('/:profileId', async (req: Request, res: Response, next: NextFunction) => {

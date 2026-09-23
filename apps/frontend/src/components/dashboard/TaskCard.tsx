@@ -1,3 +1,4 @@
+import { Phone } from 'lucide-react';
 import type { Order } from '../../types/dashboard';
 import { STATUS_CONFIG } from '../../types/dashboard';
 
@@ -65,8 +66,9 @@ export function TaskCard({ order, onClick }: TaskCardProps) {
           {order.customer ? `${order.customer.firstName} ${order.customer.lastName}` : 'Walk-in Customer'}
         </h3>
         {order.customer?.phone && (
-          <p className="text-xs text-text-secondary mt-0.5 flex items-center gap-1">
-            <span>📞</span> {order.customer.phone}
+          <p className="text-xs text-text-secondary mt-0.5 flex items-center gap-1.5">
+            <Phone className="w-3 h-3 text-text-muted shrink-0" />
+            <span>{order.customer.phone}</span>
           </p>
         )}
 

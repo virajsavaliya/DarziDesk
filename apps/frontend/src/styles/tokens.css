@@ -67,6 +67,10 @@
   --darzi-dark-warning:       #FBBF24;
   --darzi-dark-error:         #F87171;
   --darzi-dark-info:          #60A5FA;
+  --darzi-safe-top:           env(safe-area-inset-top, 0px);
+  --darzi-safe-right:         env(safe-area-inset-right, 0px);
+  --darzi-safe-bottom:        env(safe-area-inset-bottom, 0px);
+  --darzi-safe-left:          env(safe-area-inset-left, 0px);
 }
 
 /* Dark mode overrides — active surface/text/border tokens swap automatically */
@@ -84,3 +88,4 @@
   --darzi-info:           #60A5FA;
   /* --darzi-accent stays #F28C28 in dark mode (by design) */
 }
+

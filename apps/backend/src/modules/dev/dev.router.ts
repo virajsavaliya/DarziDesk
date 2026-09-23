@@ -44,8 +44,11 @@ devRouter.use((_req: Request, res: Response, next: NextFunction) => {
  */
 devRouter.get('/demo-session', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    // Prefer seeded Shree Ganesh Bespoke Tailors shop
-    let tenant = await prisma.tenant.findUnique({ where: { slug: 'shree-ganesh-tailors' } });
+    // Prefer seeded Shree Ganesh Bespoke Tailors shop (slug: demo or shree-ganesh-tailors)
+    let tenant = await prisma.tenant.findUnique({ where: { slug: 'demo' } });
+    if (!tenant) {
+      tenant = await prisma.tenant.findUnique({ where: { slug: 'shree-ganesh-tailors' } });
+    }
     if (!tenant) {
       tenant = await prisma.tenant.findUnique({ where: { slug: 'darzi-atelier' } });
     }
@@ -56,24 +59,33 @@ devRouter.get('/demo-session', async (_req: Request, res: Response, next: NextFu
       tenant = await prisma.tenant.create({
         data: {
           name: 'Shree Ganesh Bespoke Tailors',
-          slug: 'shree-ganesh-tailors',
+          slug: 'demo',
           timezone: 'Asia/Kolkata',
           city: 'Surat',
         },
       });
     }
 
-    const passwordHash = await argon2.hash('Password123!');
+    const passwordHash = await argon2.hash('demo123');
 
     // Find Owner
     let owner = await prisma.user.findFirst({
-      where: { tenantId: tenant.id, role: UserRole.SHOP_OWNER },
+      where: {
+        tenantId: tenant.id,
+        role: UserRole.SHOP_OWNER,
+        email: { in: ['demo@gmail.com', 'owner@shreeganesh.com'] },
+      },
     });
+    if (!owner) {
+      owner = await prisma.user.findFirst({
+        where: { tenantId: tenant.id, role: UserRole.SHOP_OWNER },
+      });
+    }
     if (!owner) {
       owner = await prisma.user.create({
         data: {
           tenantId: tenant.id,
-          email: 'owner@shreeganesh.com',
+          email: 'demo@gmail.com',
           passwordHash,
           firstName: 'Ramesh',
           lastName: 'Patel',
@@ -82,45 +94,26 @@ devRouter.get('/demo-session', async (_req: Request, res: Response, next: NextFu
       });
     }
 
-    // Find all Staff members for this tenant
-    let staffMembers = await prisma.user.findMany({
-      where: { tenantId: tenant.id, role: UserRole.STAFF },
+    // Find primary Staff member for this tenant (single staff per role)
+    let primaryStaff = await prisma.user.findFirst({
+      where: { tenantId: tenant.id, role: UserRole.STAFF, isActive: true },
       orderBy: { createdAt: 'asc' },
     });
 
-    if (staffMembers.length === 0) {
-      const staff1 = await prisma.user.create({
-        data: {
-          tenantId: tenant.id,
-          email: 'karan.cutter@shreeganesh.com',
-          passwordHash,
-          firstName: 'Karan',
-          lastName: 'Sharma (Master Cutter & Measurer)',
-          role: UserRole.STAFF,
-        },
-      });
-      const staff2 = await prisma.user.create({
+    if (!primaryStaff) {
+      primaryStaff = await prisma.user.create({
         data: {
           tenantId: tenant.id,
           email: 'suresh.tailor@shreeganesh.com',
           passwordHash,
           firstName: 'Suresh',
-          lastName: 'Mistry (Senior Stitching Artisan)',
+          lastName: 'Mistry (Tailoring Master)',
           role: UserRole.STAFF,
         },
       });
-      const staff3 = await prisma.user.create({
-        data: {
-          tenantId: tenant.id,
-          email: 'priya.sales@shreeganesh.com',
-          passwordHash,
-          firstName: 'Priya',
-          lastName: 'Dave (Store & Fabric Consultant)',
-          role: UserRole.STAFF,
-        },
-      });
-      staffMembers = [staff1, staff2, staff3];
     }
+
+    const staffMembers = [primaryStaff];
 
     // Ensure sample customer, fabric, and order exist for demo testing
     let sampleCustomer = await prisma.customer.findFirst({
@@ -247,16 +240,16 @@ devRouter.get('/demo-session', async (_req: Request, res: Response, next: NextFu
       });
     }
 
-    // Seed/update marketplace storefront data on tenant
+    // Seed/update marketplace storefront data on tenant (Shree Ganesh in Surat)
     await prisma.tenant.update({
       where: { id: tenant.id },
       data: {
         isListedOnMarketplace: true,
         listingStatus: ListingStatus.APPROVED,
-        city: 'Mumbai',
-        latitude: 18.922,
-        longitude: 72.834,
-        specialtyTags: ['Bespoke Suits', 'Wedding Sherwanis', 'Handloom Kurtas'],
+        city: 'Surat',
+        latitude: 21.1702,
+        longitude: 72.8311,
+        specialtyTags: ['Bespoke Suits', 'Wedding Sherwanis', 'Handloom Kurtas', 'Formal Shirts'],
         coverPhotoUrl: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=1200&q=80',
         portfolioPhotoUrls: [
           'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80',
@@ -270,7 +263,85 @@ devRouter.get('/demo-session', async (_req: Request, res: Response, next: NextFu
       },
     });
 
-    // Seed a second shop pending review for SuperAdmin moderation
+    // Seed Royal Stitch Atelier in Surat
+    let royalShop = await prisma.tenant.findUnique({ where: { slug: 'royal-stitch-surat' } });
+    if (!royalShop) {
+      royalShop = await prisma.tenant.create({
+        data: {
+          name: 'Royal Stitch Atelier',
+          slug: 'royal-stitch-surat',
+          timezone: 'Asia/Kolkata',
+          isListedOnMarketplace: true,
+          listingStatus: ListingStatus.APPROVED,
+          city: 'Surat',
+          latitude: 21.1959,
+          longitude: 72.7933,
+          specialtyTags: ["Men's Wear", 'Blazers', 'Alterations', 'Tuxedos'],
+          coverPhotoUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80',
+          portfolioPhotoUrls: [
+            'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=600&q=80',
+          ],
+          workingHours: {
+            mon_sat: '10:00 AM - 9:00 PM',
+            sun: '12:00 PM - 5:00 PM',
+          },
+        },
+      });
+    }
+
+    // Seed Modern Fit Tailors in Surat
+    let modernShop = await prisma.tenant.findUnique({ where: { slug: 'modern-fit-surat' } });
+    if (!modernShop) {
+      modernShop = await prisma.tenant.create({
+        data: {
+          name: 'Modern Fit Tailors',
+          slug: 'modern-fit-surat',
+          timezone: 'Asia/Kolkata',
+          isListedOnMarketplace: true,
+          listingStatus: ListingStatus.APPROVED,
+          city: 'Surat',
+          latitude: 21.1610,
+          longitude: 72.7710,
+          specialtyTags: ['Suits', 'Sherwani', 'Custom Design', 'Safari Suits'],
+          coverPhotoUrl: 'https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?auto=format&fit=crop&w=1200&q=80',
+          portfolioPhotoUrls: [
+            'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80',
+          ],
+          workingHours: {
+            mon_sat: '10:30 AM - 8:30 PM',
+            sun: 'Closed',
+          },
+        },
+      });
+    }
+
+    // Seed Imperial Bespoke Atelier in Mumbai
+    let imperialShop = await prisma.tenant.findUnique({ where: { slug: 'imperial-bespoke-mumbai' } });
+    if (!imperialShop) {
+      imperialShop = await prisma.tenant.create({
+        data: {
+          name: 'Imperial Bespoke Atelier',
+          slug: 'imperial-bespoke-mumbai',
+          timezone: 'Asia/Kolkata',
+          isListedOnMarketplace: true,
+          listingStatus: ListingStatus.APPROVED,
+          city: 'Mumbai',
+          latitude: 18.922,
+          longitude: 72.834,
+          specialtyTags: ['Italian Wool Suits', 'Tuxedos', 'Silk Bandhgalas'],
+          coverPhotoUrl: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=1200&q=80',
+          portfolioPhotoUrls: [
+            'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=600&q=80',
+          ],
+          workingHours: {
+            mon_sat: '10:00 AM - 9:00 PM',
+            sun: '11:00 AM - 6:00 PM',
+          },
+        },
+      });
+    }
+
+    // Seed a shop pending review for SuperAdmin moderation
     let pendingShop = await prisma.tenant.findUnique({ where: { slug: 'heritage-khadi-delhi' } });
     if (!pendingShop) {
       pendingShop = await prisma.tenant.create({

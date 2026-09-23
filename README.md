@@ -100,12 +100,52 @@ GitHub Actions runs on every PR to `main`:
 
 See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-## Phase Roadmap
+## Demo & Default Login Credentials
 
-| Phase | Description | Status |
-|---|---|---|
-| **0** | Project foundation (this phase) | ✅ In progress |
-| 1 | Authentication + tenant model | 🔜 |
-| 2 | Core helpdesk entities (tickets, agents) | 🔜 |
-| 3 | Multi-tenancy isolation | 🔜 |
-# DarziDesk
+All seeded test accounts share the same password: **`Password123!`**
+
+Navigate to the login page at **[http://localhost:5173/login](http://localhost:5173/login)**.
+
+### 🏢 1. Business Sign In (Shop Owner & Staff)
+
+Use the **"Business"** tab on `/login`.
+
+| Role | Shop URL (Slug) | Email (ID) | Password | Persona & Capabilities |
+|---|---|---|---|---|
+| **Shop Owner** | `demo` *(or `shree-ganesh-tailors`)* | `demo@gmail.com` *(or `owner@shreeganesh.com`)* | `demo123` *(or `Password123!`)* | **Ramesh Patel**: Full atelier owner dashboard, revenue analytics, orders Kanban, fabric inventory, staff management, invoices, and marketplace profile. |
+| **Staff (Master Cutter)** | `demo` *(or `shree-ganesh-tailors`)* | `karan.cutter@shreeganesh.com` | `Password123!` | **Karan Sharma**: Digital measurement book, cutting table order milestones, cutter slips. |
+| **Staff (Senior Stitcher)** | `demo` *(or `shree-ganesh-tailors`)* | `suresh.tailor@shreeganesh.com` | `Password123!` | **Suresh Mistry**: Task station, stitching milestones, garment quality checks. |
+| **Staff (Fabric Consultant)** | `demo` *(or `shree-ganesh-tailors`)* | `priya.sales@shreeganesh.com` | `Password123!` | **Priya Dave**: Customer intake, fabric ledger lookup, order creation. |
+
+---
+
+### 🛡️ 2. Platform Super Admin
+
+Use the **"Business"** tab on `/login` (Shop URL can be left as `admin` or any slug).
+
+| Role | Email (ID) | Password | Capabilities |
+|---|---|---|---|
+| **Super Admin** | `admin@darzidesk.com` | `Password123!` | **Karan Singhania**: Platform-wide tenant management, subscription tier oversight, marketplace atelier approvals, and review moderation. |
+
+---
+
+### 👤 3. Customer Portal Accounts
+
+Use the **"Customer"** tab on `/login` (no shop URL needed).
+
+| Customer Name | Email (ID) | Password | Portal Features |
+|---|---|---|---|
+| **Amit Verma** | `amit.verma@example.com` | `Password123!` | View active tailoring orders, digital measurement profile, invoices, and live tracking. |
+| **Rajesh Mehta** | `rajesh.mehta@example.com` | `Password123!` | Marketplace orders, garment status notifications, invoice receipts. |
+| **Vikramaditya Roy** | `vikram.roy@example.com` | `Password123!` | Custom bespoke suits, measurement history, and order trial schedules. |
+
+---
+
+### 💡 Quick Dev Mode Switching
+
+In development mode, you can also switch between demo personas instantly using the **demo user dropdown** in the dashboard top navigation bar, or seed fresh sample data anytime via:
+
+```bash
+npm run db:reset-and-seed --workspace=apps/backend
+```
+
