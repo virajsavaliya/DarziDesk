@@ -26,7 +26,7 @@
   <a href="#-visual-tour">Visual Tour</a> •
   <a href="#-system-architecture">Architecture</a> •
   <a href="#-getting-started">Quickstart</a> •
-  <a href="#-demo-personas--credentials">Demo Accounts</a> •
+  <a href="#-demo-personas--roles">Demo Roles</a> •
   <a href="#-monorepo-structure">Monorepo Structure</a> •
   <a href="#-security--tenant-isolation">Security & RLS</a>
 </p>
@@ -301,20 +301,20 @@ npm run dev:frontend
 
 ---
 
-## 👥 Demo Personas & Credentials
+## 👥 Demo Personas & Roles
 
-The seeded database comes with pre-configured personas to test all role-based permissions:
+The seeded database comes with pre-configured personas to test all role-based permissions and workflows across the atelier:
 
-| Persona | Role | Shop URL (Slug) | Email | Password | Primary Capabilities |
-|:---|:---|:---|:---|:---|:---|
-| **Ramesh Patel** | `SHOP_OWNER` | `demo` *(or `shree-ganesh-tailors`)* | `demo@gmail.com` | `demo123` | Full atelier command center, revenue metrics, orders Kanban, fabric inventory, staff roster, invoices. |
-| **Karan Sharma** | `STAFF` (Cutter) | `demo` | `karan.cutter@shreeganesh.com` | `Password123!` | Master cutter workbench, anatomical measurements, cutting station assignments. |
-| **Suresh Mistry** | `STAFF` (Stitcher) | `demo` | `suresh.tailor@shreeganesh.com` | `Password123!` | Stitching artisan queue, garment assembly stages, quality checks. |
-| **Priya Dave** | `STAFF` (Sales) | `demo` | `priya.sales@shreeganesh.com` | `Password123!` | Front desk customer intake, fabric meter lookup, order creation. |
-| **Amit Verma** | `CUSTOMER` | *None (Customer Tab)* | `amit.verma@example.com` | `Password123!` | Customer bespoke portal, active order tracking, measurement archive, invoice receipts. |
-| **Karan Singhania** | `SUPER_ADMIN` | `admin` | `admin@darzidesk.com` | `Password123!` | Platform-wide tenant management, subscription tiers, MRR analytics, and atelier approvals. |
+| Persona | Role | Portal / Scope | Primary Capabilities |
+|:---|:---|:---|:---|
+| **Ramesh Patel** | `SHOP_OWNER` | Business Portal | Full atelier command center, revenue metrics, orders Kanban, fabric inventory, staff roster, and invoices. |
+| **Karan Sharma** | `STAFF` (Cutter) | Business Portal | Master cutter workbench, anatomical measurements, cutting station assignments, and cutter slips. |
+| **Suresh Mistry** | `STAFF` (Stitcher) | Business Portal | Stitching artisan queue, garment assembly stages, and quality inspection workflows. |
+| **Priya Dave** | `STAFF` (Sales) | Business Portal | Front desk customer intake, fabric meterage lookup, and bespoke order commission. |
+| **Amit Verma** | `CUSTOMER` | Customer Portal | Self-serve bespoke portal, live milestone tracking, measurement archive, and invoice receipts. |
+| **Karan Singhania** | `SUPER_ADMIN` | Platform Admin | Platform-wide tenant management, subscription tier oversight, MRR analytics, and atelier approvals. |
 
-> 💡 **Quick Dev Switching**: In development mode, you can instantly alternate between personas using the **Role Switcher** in the bottom left of the dashboard sidebar.
+> 💡 **Quick Dev Switching**: In development mode, you can instantly alternate between personas using the **Role Switcher** in the bottom left of the dashboard sidebar without needing to type credentials. Test accounts are configured via the local seeder script (`apps/backend/src/scripts/reset_and_seed.ts`).
 
 ---
 
