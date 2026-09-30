@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "description": "DarziDesk API server — Express + TypeScript + Prisma",
+  "author": "Viraj Savaliya <virajsavaliya@gmail.com>",
+  "license": "MIT",
   "main": "dist/index.js",
   "engines": {
     "node": ">=20.0.0"

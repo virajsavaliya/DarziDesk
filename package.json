@@ -2,7 +2,14 @@
   "name": "darzi-desk",
   "version": "0.1.0",
   "private": true,
-  "description": "DarziDesk — multi-tenant SaaS helpdesk platform",
+  "description": "DarziDesk — The Intelligent Operating System & Bespoke Atelier Management Platform for Modern Tailors",
+  "author": "Viraj Savaliya <virajsavaliya@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/virajsavaliya/DarziDesk.git"
+  },
+  "homepage": "https://github.com/virajsavaliya/DarziDesk#readme",
   "engines": {
     "node": ">=20.0.0"
   },

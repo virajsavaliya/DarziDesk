@@ -341,10 +341,19 @@ The seeded database comes with pre-configured personas to test all role-based pe
 
 ---
 
-## 📄 License
+## 📄 License & Author
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
 
+- **Author & Maintainer**: **Viraj Savaliya** ([@virajsavaliya](https://github.com/virajsavaliya)) • [virajsavaliya@gmail.com](mailto:virajsavaliya@gmail.com)
+- **Repository**: [https://github.com/virajsavaliya/DarziDesk](https://github.com/virajsavaliya/DarziDesk)
+
+## 🤝 Community & Governance
+
+- 📘 [Contributing Guidelines](CONTRIBUTING.md) — Setup guide, conventional commits, PR process
+- 📜 [Code of Conduct](CODE_OF_CONDUCT.md) — Contributor Covenant v2.1
+- 🔒 [Security Policy](SECURITY.md) — Vulnerability reporting and disclosure SLA
+
 <p align="center">
-  Crafted with passion for bespoke tailoring ateliers worldwide.
+  Crafted with passion by <strong>Viraj Savaliya</strong> for bespoke tailoring ateliers worldwide.
 </p>
