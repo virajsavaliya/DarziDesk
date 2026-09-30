@@ -130,4 +130,4 @@ npm run build
 
 If you encounter any issues or have questions:
 - Open a GitHub Issue for bug reports or feature requests.
-- Contact the maintainer: **Viraj Savaliya** ([virajsavaliya@gmail.com](mailto:virajsavaliya@gmail.com)).
+- Contact the maintainer: **Viraj Savaliya** ([enquiry.virajsavaliya@gmail.com](mailto:enquiry.virajsavaliya@gmail.com)).

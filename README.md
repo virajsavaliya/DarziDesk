@@ -345,7 +345,7 @@ The seeded database comes with pre-configured personas to test all role-based pe
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
 
-- **Author & Maintainer**: **Viraj Savaliya** ([@virajsavaliya](https://github.com/virajsavaliya)) • [virajsavaliya@gmail.com](mailto:virajsavaliya@gmail.com)
+- **Author & Maintainer**: **Viraj Savaliya** ([@virajsavaliya](https://github.com/virajsavaliya)) • [enquiry.virajsavaliya@gmail.com](mailto:enquiry.virajsavaliya@gmail.com)
 - **Repository**: [https://github.com/virajsavaliya/DarziDesk](https://github.com/virajsavaliya/DarziDesk)
 
 ## 🤝 Community & Governance

@@ -20,7 +20,7 @@ The DarziDesk team takes the security of our multi-tenant SaaS architecture seri
 **Please do NOT disclose vulnerabilities publicly in issues or discussions.**
 
 Instead, please report potential vulnerabilities by emailing the project maintainer:
-- **Email**: [virajsavaliya@gmail.com](mailto:virajsavaliya@gmail.com)
+- **Email**: [enquiry.virajsavaliya@gmail.com](mailto:enquiry.virajsavaliya@gmail.com)
 - **Subject**: `[SECURITY VULNERABILITY] DarziDesk - <Brief Description>`
 
 ### Information to Include
