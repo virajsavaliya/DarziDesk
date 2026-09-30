@@ -1,151 +1,350 @@
-# DarziDesk
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo_for_dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo_for_light.png">
+    <img alt="DarziDesk Logo" src="docs/assets/logo_for_light.png" width="460">
+  </picture>
+</p>
 
-Multi-tenant SaaS helpdesk platform — monorepo.
+<p align="center">
+  <strong>The Intelligent Operating System & Bespoke Atelier Management Platform for Modern Tailors</strong>
+</p>
 
-## Repository Structure
+<p align="center">
+  <a href="https://github.com/virajsavaliya/DarziDesk/actions"><img src="https://img.shields.io/badge/CI-passing-emerald.svg?style=flat-square&logo=githubactions" alt="CI Status"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.4-blue.svg?style=flat-square&logo=typescript" alt="TypeScript"></a>
+  <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-19.0-61dafb.svg?style=flat-square&logo=react" alt="React 19"></a>
+  <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind_CSS-v4.0-38bdf8.svg?style=flat-square&logo=tailwindcss" alt="Tailwind CSS v4"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-20_LTS-green.svg?style=flat-square&logo=nodedotjs" alt="Node.js 20"></a>
+  <a href="https://www.prisma.io/"><img src="https://img.shields.io/badge/Prisma-5.22-2D3748.svg?style=flat-square&logo=prisma" alt="Prisma"></a>
+  <a href="https://www.postgresql.org/"><img src="https://img.shields.io/badge/PostgreSQL-RLS_Dual--Layer-4169E1.svg?style=flat-square&logo=postgresql" alt="PostgreSQL"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-purple.svg?style=flat-square" alt="License MIT"></a>
+</p>
+
+<p align="center">
+  <a href="#-key-features">Key Features</a> •
+  <a href="#-visual-tour">Visual Tour</a> •
+  <a href="#-system-architecture">Architecture</a> •
+  <a href="#-getting-started">Quickstart</a> •
+  <a href="#-demo-personas--credentials">Demo Accounts</a> •
+  <a href="#-monorepo-structure">Monorepo Structure</a> •
+  <a href="#-security--tenant-isolation">Security & RLS</a>
+</p>
+
+---
+
+## 🌟 Overview
+
+**DarziDesk** is an enterprise-grade, multi-tenant SaaS platform engineered specifically for custom tailoring houses, boutique ateliers, and bespoke craft studios (*Darzis*). 
+
+Traditional tailoring studios run on fragmented paper notebooks, manual measurements lost in diary margins, unrecorded fabric cut-offs, manual phone follow-ups, and handwritten paper receipts. **DarziDesk digitizes the entire bespoke garment lifecycle into a single high-performance system:**
+
+- 📐 **Interactive 15-Point Body Mannequin**: Precise anatomical measurements with visual callouts and garment presets.
+- 🧵 **Fabric (Kapad) Inventory Ledger**: Meterage reservations, roll tracking, and automated shortage guards.
+- 📋 **Artisan Task Queue & Pipeline**: Real-time multi-stage status from Cutting & Stitching to Quality Check & Fitting Trials.
+- 💳 **Smart Billing & Partial Payments**: Sequential tax invoicing, deposit receipts, and PDFKit generation.
+- 👤 **Self-Serve Customer Portal**: Live order milestones, digital measurement records, and atelier discovery.
+- 🛡️ **Dual-Layer Multi-Tenant Security**: Strict application-level scoping combined with PostgreSQL native Row-Level Security (RLS).
+
+---
+
+## 📸 Visual Tour
+
+### 1. Modern Public Landing & Storefront Discovery
+A high-converting customer landing page and public atelier directory that introduces bespoke craftsmanship, pricing plans, and direct booking.
+
+<p align="center">
+  <img src="docs/assets/screenshot-landing.png" alt="DarziDesk Landing Page" width="100%">
+</p>
+
+---
+
+### 2. Atelier Owner Command Center
+Real-time dashboard giving tailor shop owners instant oversight of active orders, daily throughput, revenue collected, low-stock fabric alerts, and weekly volume trends.
+
+<p align="center">
+  <img src="docs/assets/screenshot-dashboard.png" alt="Owner Dashboard" width="100%">
+</p>
+
+---
+
+### 3. Interactive 15-Point Visual Measurement Book
+Digital body chart supporting 15 anatomical tailoring landmarks (Neck, Shoulder, Chest/Bust, Upper Chest, Waist, Hips, Sleeve Length, Bicep, Wrist, Jacket Length, Trouser Inseam, Outseam, Thigh, Knee, Leg Opening) with toggleable garment presets (Bespoke Suit, Shirt & Polo, Trouser/Pant, Kurta & Ethnic).
+
+<p align="center">
+  <img src="docs/assets/screenshot-measurements.png" alt="15-Point Visual Measurement Mannequin" width="100%">
+</p>
+
+---
+
+### 4. Bespoke Order Production Pipeline
+Comprehensive multi-stage tailoring order management with real-time status tracking, artisan assignment, delivery date monitoring, and workflow filtering.
+
+<p align="center">
+  <img src="docs/assets/screenshot-orders.png" alt="Orders Production Pipeline" width="100%">
+</p>
+
+---
+
+### 5. Fabric (Kapad) Inventory Ledger & Roll Tracking
+Accurate meterage management distinguishing available vs. reserved fabric, purchase logs, low-stock threshold badges, and roll tracking to eliminate fabric overbooking.
+
+<p align="center">
+  <img src="docs/assets/screenshot-fabrics.png" alt="Fabric Inventory Ledger" width="100%">
+</p>
+
+---
+
+### 6. Billing, Invoicing & Financial Settlement
+Automated invoice generation (`INV-SG-XXXX`), tax computations, partial advance deposits, balance due ledgers, and downloadable customer receipts.
+
+<p align="center">
+  <img src="docs/assets/screenshot-invoices.png" alt="Billing and Invoices" width="100%">
+</p>
+
+---
+
+### 7. Customer Bespoke Portal
+Client-facing self-service interface where patrons track live production stages of their garments, view measurement profiles, and access payment receipts without needing to call the shop.
+
+<p align="center">
+  <img src="docs/assets/screenshot-customer-portal.png" alt="Customer Bespoke Portal" width="100%">
+</p>
+
+---
+
+### 8. Platform Super Admin Console
+Multi-tenant governance center for monitoring registered ateliers, subscription plan tiers, platform MRR, support sessions, and marketplace moderation.
+
+<p align="center">
+  <img src="docs/assets/screenshot-admin.png" alt="Platform Super Admin Console" width="100%">
+</p>
+
+---
+
+## ⚡ Key Features
+
+| Feature | Description |
+|---|---|
+| **🎨 15-Point Visual Sizing** | Interactive anatomical mannequin diagram with live measurement callouts, inches/cm conversion, and print-ready measurement slips. |
+| **🔄 Complete Order State Machine** | Strict multi-stage lifecycle: `PLACED` ➔ `MEASUREMENT_CONFIRMED` ➔ `CUTTING` ➔ `STITCHING` ➔ `QUALITY_CHECK` ➔ `READY_FOR_TRIAL` ➔ `DELIVERED`. |
+| **✂️ Artisan Task Queue** | Dedicated task workbenches for Master Cutters and Senior Stitchers with role-specific garment instructions. |
+| **🧵 Fabric Meterage Ledger** | Real-time calculation of available, reserved, and consumed meterage with automated deduction upon cutting confirmation. |
+| **🧾 Tax Invoicing & PDF Generation** | Professional sequential invoice generation, GST/sales tax calculation, partial advance receipts, and automated PDF downloads. |
+| **📲 Multichannel Notifications** | Event-driven notification dispatch pipeline for order confirmations, trial readiness, and delivery updates via WhatsApp, SMS, and Email. |
+| **🏬 Public Marketplace** | Location-aware atelier storefront directory allowing customers to discover master tailors, view service menus, and submit custom commissions. |
+| **🛡️ Dual-Layer Multi-Tenancy** | Zero-leakage data isolation combining Prisma query filtering with transaction-scoped PostgreSQL Row-Level Security (`SET LOCAL app.tenant_id`). |
+| **🔑 Zero-Trust Header Architecture** | Client-supplied tenant IDs are strictly stripped; tenant context is authenticated server-side exclusively from signed JWTs. |
+
+---
+
+## 🏗️ System Architecture
+
+DarziDesk is built as an npm workspaces monorepo with clean domain boundaries:
+
+```mermaid
+graph TD
+    Client[Web Client: React 19 + Vite + Tailwind CSS]
+    Router[Express API Gateway :3001]
+    AuthMiddleware[Auth Middleware: JWT Verification]
+    RBAC[RBAC: Owner / Staff / SuperAdmin / Customer]
+    DomainModules[Domain Modules: Orders, Fabrics, Invoices, Measurements, Staff]
+    PrismaCtx[Prisma withTenantContext Transaction]
+    PostgresRLS[(PostgreSQL DB + Row Level Security)]
+
+    Client -->|Bearer JWT| Router
+    Router --> AuthMiddleware
+    AuthMiddleware --> RBAC
+    RBAC --> DomainModules
+    DomainModules --> PrismaCtx
+    PrismaCtx -->|SET LOCAL app.tenant_id = ?| PostgresRLS
+```
+
+### Multi-Tenant Isolation (Dual-Layer Defense)
+
+1. **Layer 1 (Application Scoping)**:
+   - Every tenant database query enforces `where: { tenantId }`.
+   - `tenantId` is extracted strictly from the validated JWT payload (`res.locals.auth.tenantId`).
+   - Injected client headers (e.g. `x-tenant-id`) are discarded.
+
+2. **Layer 2 (PostgreSQL Native RLS)**:
+   - Database tables enforce Row-Level Security policies.
+   - Wrapped inside `prisma.ts` via `withTenantContext`:
+     ```sql
+     SELECT set_config('app.tenant_id', current_tenant_id, true);
+     ```
+   - Even if an application query omits a tenant filter, PostgreSQL prevents cross-tenant data leakage at the database engine level.
+
+---
+
+## 🔄 Order Lifecycle State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> PLACED: Customer commissions order
+    PLACED --> MEASUREMENT_CONFIRMED: Master tailor verifies fit specifications
+    MEASUREMENT_CONFIRMED --> CUTTING: Fabric reserved & allocated to Master Cutter
+    CUTTING --> STITCHING: Cutter slip generated & assigned to Stitching Artisan
+    STITCHING --> QUALITY_CHECK: Garment crafted & submitted to inspection
+    QUALITY_CHECK --> READY_FOR_TRIAL: QA passed; customer notified for trial fitting
+    READY_FOR_TRIAL --> DELIVERED: Final trial approved & balance settled
+    DELIVERED --> [*]
+```
+
+---
+
+## 📂 Monorepo Structure
 
 ```
-darzi-desk/
+Darzi_desk/
 ├── apps/
-│   ├── backend/     # Node.js + Express + TypeScript + Prisma
-│   └── frontend/    # React + Vite + TypeScript + Tailwind CSS
+│   ├── backend/                     # Node.js + Express + TypeScript + Prisma
+│   │   ├── prisma/
+│   │   │   ├── schema.prisma        # Database schema definitions & enums
+│   │   │   └── migrations/          # PostgreSQL migrations + RLS policies
+│   │   ├── src/
+│   │   │   ├── lib/                 # Prisma client singleton & RLS context wrapper
+│   │   │   ├── middleware/          # JWT auth, RBAC, error handler, rate limiter
+│   │   │   ├── modules/             # Auth, customers, fabrics, invoices, measurements,
+│   │   │   │                        # notifications, orders, portal, staff, dev seeder
+│   │   │   └── scripts/             # Database reset & workflow test seeders
+│   └── frontend/                    # React 19 + Vite + TypeScript + Tailwind CSS v4
+│       ├── public/                  # Static assets & favicons
+│       └── src/
+│           ├── assets/              # High-res logos, atelier imagery, avatars
+│           ├── components/
+│           │   ├── admin/           # Super Admin platform views
+│           │   ├── common/          # Reusable UI primitives (StatusBadge, Drawer)
+│           │   ├── dashboard/       # Orders Kanban, Visual Mannequin, Analytics
+│           │   ├── invoices/        # Billing ledger, payment modal, invoice receipt
+│           │   ├── landing/         # Marketing landing pages, marketplace, auth
+│           │   ├── layout/          # Responsive Sidebar, Navbar, AppShell
+│           │   └── portal/          # Customer self-serve portal views
+│           └── types/               # Frontend domain definitions
 ├── packages/
-│   └── types/       # Shared TypeScript types
-├── .github/
-│   └── workflows/
-│       └── ci.yml   # Lint + typecheck + build on every PR
-└── docker-compose.yml
+│   └── types/                       # Shared TypeScript contracts & interfaces
+├── docs/
+│   ├── architecture.md              # Canonical architectural reference
+│   ├── design.md                    # Design tokens, color palette, UI principles
+│   ├── saas_product_and_super_admin_guide.md # SaaS subscription guide
+│   └── assets/                      # Readme screenshots & branding assets
+├── docker-compose.yml               # Local PostgreSQL container service
+└── package.json                     # Monorepo workspace configuration
 ```
 
-## Prerequisites
+---
 
-- **Node.js** 20 LTS ([nvm](https://github.com/nvm-sh/nvm) recommended — `.nvmrc` present)
-- **Docker Desktop** (for local PostgreSQL)
-- **npm** 10+
+## 🚀 Getting Started
 
-## Local Setup
+### Prerequisites
 
-### 1. Use the correct Node version
+- **Node.js**: 20 LTS (`.nvmrc` included)
+- **npm**: 10+
+- **PostgreSQL**: Docker Desktop or local PostgreSQL instance (Postgres.app / Homebrew)
+
+### 1. Clone & Install
 
 ```bash
-nvm use   # reads .nvmrc → Node 20
+git clone https://github.com/virajsavaliya/DarziDesk.git
+cd DarziDesk
+
+# Switch to supported Node 20 LTS
+nvm use
+
+# Install dependencies across all workspaces
+npm install
 ```
 
-### 2. Start PostgreSQL
-
-```bash
-docker compose up -d
-# Postgres available at localhost:5432
-# DB: darzi_desk_dev | User: darzi | Password: darzi_secret
-```
-
-### 3. Install all dependencies
-
-```bash
-npm install   # installs all workspaces from root
-```
-
-### 4. Configure environment
+### 2. Configure Environment
 
 ```bash
 cp apps/backend/.env.example apps/backend/.env
-# The default values match the docker-compose service — no edits needed for local dev
 ```
 
-### 5. Run database migrations
+*The default `.env` is pre-configured for local development with `localhost:5432`.*
 
+### 3. Start Database & Apply Schema
+
+If using Docker:
 ```bash
-npm run db:migrate --workspace=apps/backend
-# Creates/applies Prisma migrations and generates the client
+docker compose up -d
 ```
 
-### 6. Start the backend
+Push Prisma schema and generate client:
+```bash
+npm run db:generate --workspace=apps/backend
+npx prisma db push --schema=apps/backend/prisma/schema.prisma
+```
+
+### 4. Seed Workflow Test Data
+
+Populate the database with realistic bespoke ateliers, fabric inventory, measurement profiles, and multi-stage active orders:
+```bash
+npx tsx apps/backend/src/scripts/reset_and_seed.ts
+```
+
+### 5. Launch the Application
+
+In two terminal sessions (or run concurrently):
 
 ```bash
+# Terminal 1: Backend API Server (:3001)
 npm run dev:backend
-# Express API on http://localhost:3001
-# Health check: curl http://localhost:3001/api/health
-```
 
-### 7. Start the frontend
-
-```bash
+# Terminal 2: Frontend Client (:5173)
 npm run dev:frontend
-# Vite dev server on http://localhost:5173
 ```
 
-## Available Scripts (root)
-
-| Script | Description |
-|---|---|
-| `npm run build` | Build all workspaces |
-| `npm run typecheck` | Type-check all workspaces |
-| `npm run lint` | Lint all workspaces |
-| `npm run dev:backend` | Start backend in dev mode |
-| `npm run dev:frontend` | Start frontend in dev mode |
-
-## Health Check
-
-```bash
-curl http://localhost:3001/api/health
-# { "status": "ok", "timestamp": "...", "uptime": 12.34 }
-```
-
-## CI
-
-GitHub Actions runs on every PR to `main`:
-- ESLint across all workspaces
-- TypeScript type-check (`tsc --noEmit`)
-- Build (`tsc` for backend, `vite build` for frontend)
-
-See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
-
-## Demo & Default Login Credentials
-
-All seeded test accounts share the same password: **`Password123!`**
-
-Navigate to the login page at **[http://localhost:5173/login](http://localhost:5173/login)**.
-
-### 🏢 1. Business Sign In (Shop Owner & Staff)
-
-Use the **"Business"** tab on `/login`.
-
-| Role | Shop URL (Slug) | Email (ID) | Password | Persona & Capabilities |
-|---|---|---|---|---|
-| **Shop Owner** | `demo` *(or `shree-ganesh-tailors`)* | `demo@gmail.com` *(or `owner@shreeganesh.com`)* | `demo123` *(or `Password123!`)* | **Ramesh Patel**: Full atelier owner dashboard, revenue analytics, orders Kanban, fabric inventory, staff management, invoices, and marketplace profile. |
-| **Staff (Master Cutter)** | `demo` *(or `shree-ganesh-tailors`)* | `karan.cutter@shreeganesh.com` | `Password123!` | **Karan Sharma**: Digital measurement book, cutting table order milestones, cutter slips. |
-| **Staff (Senior Stitcher)** | `demo` *(or `shree-ganesh-tailors`)* | `suresh.tailor@shreeganesh.com` | `Password123!` | **Suresh Mistry**: Task station, stitching milestones, garment quality checks. |
-| **Staff (Fabric Consultant)** | `demo` *(or `shree-ganesh-tailors`)* | `priya.sales@shreeganesh.com` | `Password123!` | **Priya Dave**: Customer intake, fabric ledger lookup, order creation. |
+- **Frontend Application**: [http://localhost:5173](http://localhost:5173)
+- **Backend API**: [http://localhost:3001](http://localhost:3001)
+- **API Health Check**: [http://localhost:3001/api/health](http://localhost:3001/api/health)
 
 ---
 
-### 🛡️ 2. Platform Super Admin
+## 👥 Demo Personas & Credentials
 
-Use the **"Business"** tab on `/login` (Shop URL can be left as `admin` or any slug).
+The seeded database comes with pre-configured personas to test all role-based permissions:
 
-| Role | Email (ID) | Password | Capabilities |
-|---|---|---|---|
-| **Super Admin** | `admin@darzidesk.com` | `Password123!` | **Karan Singhania**: Platform-wide tenant management, subscription tier oversight, marketplace atelier approvals, and review moderation. |
+| Persona | Role | Shop URL (Slug) | Email | Password | Primary Capabilities |
+|:---|:---|:---|:---|:---|:---|
+| **Ramesh Patel** | `SHOP_OWNER` | `demo` *(or `shree-ganesh-tailors`)* | `demo@gmail.com` | `demo123` | Full atelier command center, revenue metrics, orders Kanban, fabric inventory, staff roster, invoices. |
+| **Karan Sharma** | `STAFF` (Cutter) | `demo` | `karan.cutter@shreeganesh.com` | `Password123!` | Master cutter workbench, anatomical measurements, cutting station assignments. |
+| **Suresh Mistry** | `STAFF` (Stitcher) | `demo` | `suresh.tailor@shreeganesh.com` | `Password123!` | Stitching artisan queue, garment assembly stages, quality checks. |
+| **Priya Dave** | `STAFF` (Sales) | `demo` | `priya.sales@shreeganesh.com` | `Password123!` | Front desk customer intake, fabric meter lookup, order creation. |
+| **Amit Verma** | `CUSTOMER` | *None (Customer Tab)* | `amit.verma@example.com` | `Password123!` | Customer bespoke portal, active order tracking, measurement archive, invoice receipts. |
+| **Karan Singhania** | `SUPER_ADMIN` | `admin` | `admin@darzidesk.com` | `Password123!` | Platform-wide tenant management, subscription tiers, MRR analytics, and atelier approvals. |
 
----
-
-### 👤 3. Customer Portal Accounts
-
-Use the **"Customer"** tab on `/login` (no shop URL needed).
-
-| Customer Name | Email (ID) | Password | Portal Features |
-|---|---|---|---|
-| **Amit Verma** | `amit.verma@example.com` | `Password123!` | View active tailoring orders, digital measurement profile, invoices, and live tracking. |
-| **Rajesh Mehta** | `rajesh.mehta@example.com` | `Password123!` | Marketplace orders, garment status notifications, invoice receipts. |
-| **Vikramaditya Roy** | `vikram.roy@example.com` | `Password123!` | Custom bespoke suits, measurement history, and order trial schedules. |
+> 💡 **Quick Dev Switching**: In development mode, you can instantly alternate between personas using the **Role Switcher** in the bottom left of the dashboard sidebar.
 
 ---
 
-### 💡 Quick Dev Mode Switching
+## 🛠️ Monorepo Scripts
 
-In development mode, you can also switch between demo personas instantly using the **demo user dropdown** in the dashboard top navigation bar, or seed fresh sample data anytime via:
+| Command | Workspace | Description |
+|---|---|---|
+| `npm run build` | Root | Builds backend, frontend, and shared types packages |
+| `npm run typecheck` | Root | Runs `tsc --noEmit` across all workspaces |
+| `npm run lint` | Root | Executes ESLint validation across all workspaces |
+| `npm run test` | Backend | Runs Vitest unit and integration test suites |
+| `npm run dev:backend` | Backend | Starts Express API with hot-reloading on port 3001 |
+| `npm run dev:frontend` | Frontend | Starts Vite dev server with HMR on port 5173 |
 
-```bash
-npm run db:reset-and-seed --workspace=apps/backend
-```
+---
 
+## 🛡️ Security & Quality Standards
+
+- **Tenant Isolation**: Tested and enforced with strict PostgreSQL RLS policies and automated cross-tenant leakage test suites.
+- **Authentication**: Stateless HMAC-SHA256 JWT tokens with segregated `darzi:staff` and `darzi:customer` token namespaces.
+- **Password Hashing**: Secure Argon2id password hashing with custom salt and memory cost parameters.
+- **Input Validation**: End-to-end request validation using Zod schemas on all API inputs.
+- **CI Automation**: GitHub Actions runs linting, type-checking, and build validation on every push and PR.
+
+---
+
+## 📄 License
+
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
+
+<p align="center">
+  Crafted with passion for bespoke tailoring ateliers worldwide.
+</p>
